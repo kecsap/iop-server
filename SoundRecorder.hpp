@@ -19,20 +19,35 @@
  *
  */
 
-#include "SoundRecorder.hpp"
+#include <qaudioinput.h>
+#include <qaudiorecorder.h>
+#include <qobject.h>
+#include <qtimer.h>
 
-#include <qguiapplication.h>
-#include <qqmlapplicationengine.h>
+#include <opencv/ml.h>
 
 #include <boost/scoped_ptr.hpp>
 
-int main(int argc, char *argv[])
+class CvRTrees;
+
+class SoundRecorder : public QObject
 {
-  QGuiApplication app(argc, argv);
-  QQmlApplicationEngine engine;
-  SoundRecorder Recorder;
+  Q_OBJECT
 
-//  engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
-  return app.exec();
-}
+public:
+  SoundRecorder();
 
+public Q_SLOTS:
+
+  void Update();
+
+  void DoRecognition();
+
+protected:
+  boost::scoped_ptr<QAudioInput> AudioInput;
+  QIODevice* Device;
+  QAudioRecorder AudioRecorder;
+  boost::scoped_ptr<CvRTrees> Classifier;
+  unsigned char Buffer[100000];
+  int BufferPos;
+};
