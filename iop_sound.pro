@@ -1,6 +1,6 @@
 TEMPLATE = app
 
-QT += qml quick multimedia
+QT += qml quick widgets multimedia
 
 LIBS += -lopencv_core -lopencv_ml
 
@@ -14,6 +14,7 @@ SOURCES += \
     libs/libxtract/c-ringbuf/ringbuf.c \
     libs/libxtract/dywapitchtrack/dywapitchtrack.c \
     libs/libxtract/ooura/fftsg.c \
+    libs/libxtract/WaveFile.cpp \
     libs/libxtract/delta.c \
     libs/libxtract/descriptors.c \
     libs/libxtract/fini.c \
@@ -41,4 +42,3 @@ QML_IMPORT_PATH =
 include(deployment.pri)
 
 DISTFILES +=
-

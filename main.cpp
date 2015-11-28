@@ -23,16 +23,23 @@
 
 #include <qguiapplication.h>
 #include <qqmlapplicationengine.h>
+#include <qquickwindow.h>
 
 #include <boost/scoped_ptr.hpp>
 
 int main(int argc, char *argv[])
 {
-  QGuiApplication app(argc, argv);
-  QQmlApplicationEngine engine;
-  SoundRecorder Recorder;
+  QGuiApplication App(argc, argv);
+  QQmlApplicationEngine Engine;
+  QQuickWindow* View = NULL;
+  Engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+  View = qobject_cast<QQuickWindow*>(Engine.rootObjects()[0]);
 
-//  engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
-  return app.exec();
+//  SoundRecorder Recorder();
+//  SoundRecorder Recorder("test_audio.wav", Engine.rootObjects()[0]);
+  SoundRecorder Recorder("test_audio2.wav", Engine.rootObjects()[0]);
+
+  View->showFullScreen();
+  return App.exec();
 }
 

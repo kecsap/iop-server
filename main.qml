@@ -1,8 +1,14 @@
-import QtQuick 2.3
-import QtQuick.Window 2.2
+import QtQuick 2.0
+import QtQuick.Window 2.0
 
 Window {
     visible: true
+Rectangle{
+    id: fuckYoo
+    objectName: "fuckYoo"
+    anchors.fill: parent
+
+    property alias resultText: resultLabel.text
 
     MouseArea {
         anchors.fill: parent
@@ -11,9 +17,13 @@ Window {
         }
     }
 
+
     Text {
-        text: qsTr("Hello World")
+        id: resultLabel
+        font.pixelSize: 100
+        text: ""
         anchors.centerIn: parent
     }
 }
 
+}

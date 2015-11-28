@@ -1,6 +1,7 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
+        <file>dt.xml</file>
         <file>rt.xml</file>
     </qresource>
 </RCC>

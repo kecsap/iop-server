@@ -22,32 +22,44 @@
 #include <qaudioinput.h>
 #include <qaudiorecorder.h>
 #include <qobject.h>
+#include <QTime>
 #include <qtimer.h>
 
 #include <opencv/ml.h>
 
 #include <boost/scoped_ptr.hpp>
 
-class CvRTrees;
+#include <utility>
+
+class CvStatModel;
+
+typedef std::pair<float, float> RecognitionResult;
 
 class SoundRecorder : public QObject
 {
   Q_OBJECT
 
 public:
-  SoundRecorder();
+  SoundRecorder(const QString& file_name = "", QObject* root_object = NULL);
 
 public Q_SLOTS:
 
   void Update();
-
-  void DoRecognition();
+  RecognitionResult DoRecognition();
+  void StateMachine(RecognitionResult result, int timestamp);
+  void ShowText(const QString& text, int duration = 500);
+  void ResetResultText();
 
 protected:
   boost::scoped_ptr<QAudioInput> AudioInput;
   QIODevice* Device;
   QAudioRecorder AudioRecorder;
-  boost::scoped_ptr<CvRTrees> Classifier;
+  boost::scoped_ptr<CvStatModel> ClassifierTree;
+  boost::scoped_ptr<CvStatModel> ClassifierForest;
   unsigned char Buffer[100000];
   int BufferPos;
+  QTime Timer;
+  std::vector<char> WavBuffer;
+  QObject* Page;
+  QTimer ResultTextResetTimer;
 };
