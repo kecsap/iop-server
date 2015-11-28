@@ -36,8 +36,10 @@ int main(int argc, char *argv[])
   View = qobject_cast<QQuickWindow*>(Engine.rootObjects()[0]);
 
 //  SoundRecorder Recorder();
-//  SoundRecorder Recorder("test_audio.wav", Engine.rootObjects()[0]);
-  SoundRecorder Recorder("test_audio2.wav", Engine.rootObjects()[0]);
+//  SoundRecorder Recorder("test_audio.wav", Engine.rootObjects()[0]); // OPPONENT
+//  SoundRecorder Recorder("test_audio2.wav", Engine.rootObjects()[0]);  // SERVER
+//  SoundRecorder Recorder("test_audio3.wav", Engine.rootObjects()[0]); // MESSY -> NO IDEA
+  SoundRecorder Recorder("test_audio4.wav", Engine.rootObjects()[0]); // OPPONENT
 
   View->showFullScreen();
   return App.exec();

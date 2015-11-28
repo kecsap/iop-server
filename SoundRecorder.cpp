@@ -336,6 +336,8 @@ RecognitionResult SoundRecorder::DoRecognition()
   int Count = ItemCountInContainer(Labels, Winner);
   RecognitionResult Result(Winner, (float)Count / Labels.size());
 
+  if (Result.second < 0.5)
+    return RecognitionResult(1.0, 1.0);
 
   std::string Prefix;
 
@@ -423,7 +425,7 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     TalkCounter = 0;
   }
   // Check the ping periods to skip false alarms
-  if (result.first == 2.0)
+  if (result.first == 2.0 && timestamp-LastPingTimestamp > 100)
   {
     PingEventChances.push_back(result.second);
   }
@@ -510,7 +512,7 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     }
   }
   // PING
-  if (result.first != 2.0 && PingEventChances.size() > 0)
+  if (result.first != 2.0 && result.second > 0.4 && PingEventChances.size() > 0)
   {
     bool RealPing = false;
 
