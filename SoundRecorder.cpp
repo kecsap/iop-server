@@ -1,14 +1,14 @@
 /*
  *  This file is part of the iop_sound_prototype
  *
- *  Copyright (C) 2015 Csaba Kertész (csaba.kertesz@gmail.com)
+ *  Copyright (C) 2015-2016 Csaba Kertész (csaba.kertesz@gmail.com)
  *
- *  AiBO+ is free software; you can redistribute it and/or modify
+ *  iop_sound_prototype is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
- *  AiBO+ is distributed in the hope that it will be useful,
+ *  iop_sound_prototype is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
@@ -21,35 +21,22 @@
 
 #include "SoundRecorder.hpp"
 
+#include <core/MASamplesStatistics.hpp>
+#include <sound/MASoundData.hpp>
+
+#include <MCBinaryData.hpp>
+#include <MCContainers.hpp>
+#include <MCDefs.hpp>
+
 #include <qdatastream.h>
 #include <qfile.h>
 #include <qresource.h>
 #include <qsound.h>
-#include <qtimer.h>
-
-#include <opencv/cv.h>
-#include <opencv2/core/core.hpp>
-
-#include <libxtract.h>
-#include <WaveFile.h>
 
 #include <boost/unordered_map.hpp>
 
 const int SampleRate = 16000;
-const int HannWindowSize = 512;
 const int SlidingWindowSize = 2048;
-
-template <typename T>
-std::string ToStr(const T value, bool hex_manipulator = false)
-{
-  std::stringstream Tmp;
-
-  if (hex_manipulator)
-    Tmp << std::hex;
-  Tmp << value;
-  return Tmp.str();
-}
-
 
 QString GetAudioDevice()
 {
@@ -64,120 +51,37 @@ QString GetAudioDevice()
   return "hw:CARD=Device,DEV=0";
 }
 
-template <typename T, typename U>
-T GetMostFrequentItemFromContainer(const U& container)
+
+MAModel* GetClassifier(const QString& resource_str)
 {
-  if (container.empty())
-    return (T)0;
-
-  boost::unordered_map<float, int> Counts;
-
-  for (unsigned int i = 0; i < container.size(); ++i)
-  {
-    Counts[container[i]]++;
-  }
-  int MaxCount = 0;
-  T Item = (T)0;
-
-  for (boost::unordered_map<float, int>::const_iterator Iter = Counts.begin();
-       Iter != Counts.end(); ++Iter)
-  {
-    if (MaxCount < Iter->second)
-    {
-      MaxCount = Iter->second;
-      Item = Iter->first;
-    }
-  }
-  return Item;
-}
-
-
-template <typename T, typename U>
-int ItemCountInContainer(const U& container, const T item)
-{
-  if (container.size() == 0)
-    return 0;
-
-  unsigned int ContainerSize = container.size();
-  int Hits = 0;
-
-  for (unsigned int i = 0; i < ContainerSize; ++i)
-  {
-    if (container[i] == item)
-      Hits++;
-  }
-  return Hits;
-}
-
-
-template <typename U>
-void PrintContainerAsFloats(U& container, const std::string& message = "", unsigned int digits = 2)
-{
-  if (container.empty())
-    return;
-
-  std::stringstream FormatString;
-
-  if (!message.empty())
-    FormatString << message << ": " << std::fixed;
-
-  FormatString.precision(digits);
-  for (unsigned int i = 0; i < container.size(); ++i)
-  {
-    FormatString << (float)container[i];
-    if (i < container.size()-1)
-      FormatString << ", ";
-  }
-  printf("%s\n", FormatString.str().c_str());
-}
-
-
-CvStatModel* GetClassifier(const QString& resource_str)
-{
-  CvStatModel* Classifier = NULL;
-  boost::scoped_ptr<cv::FileStorage> FileStorage;
   QResource XmlResource(resource_str);
   QFile ClassifierFile(XmlResource.absoluteFilePath());
   QDataStream InputStream(&ClassifierFile);
-  std::vector<char> DataBuffer(ClassifierFile.size(), 0);
-  cv::FileNode FileNode;
+  MCBinaryData DataBuffer(ClassifierFile.size());
 
   ClassifierFile.open(QIODevice::ReadOnly);
-  InputStream.readRawData(DataBuffer.data(), ClassifierFile.size());
+  InputStream.readRawData((char*)DataBuffer.GetData(), ClassifierFile.size());
   ClassifierFile.close();
-  FileStorage.reset(new cv::FileStorage(DataBuffer.data(), cv::FileStorage::READ+cv::FileStorage::MEMORY));
-  if (resource_str.contains("rt"))
-  {
-    Classifier = new CvRTrees;
-  } else {
-    Classifier = new CvDTree;
-  }
-  FileNode = FileStorage->getFirstTopLevelNode();
-  Classifier->read(**FileStorage, *FileNode);
-  return Classifier;
+  return MAModel::Decode(DataBuffer);
 }
 
-SoundRecorder::SoundRecorder(const QString& file_name, QObject* root_object) : Device(NULL), BufferPos(0),
-  Page(NULL)
+SoundRecorder::SoundRecorder(const QString& file_name, QObject* root_object) : Device(NULL), AudioAnalyzer(SampleRate, 5),
+  BufferPos(0), Page(NULL)
 {
   if (root_object)
     Page = root_object->findChild<QObject*>("fuckYoo");
   // Load the classifiers
-  ClassifierTree.reset(GetClassifier(":/dt.xml"));
-  ClassifierForest.reset(GetClassifier(":/rt.xml"));
+  ClassifierTree.reset(GetClassifier(":/pingpongsound_dt.mdl"));
+  ClassifierForest.reset(GetClassifier(":/pingpongsound_rt.mdl"));
+  ClassifierSvm.reset(GetClassifier(":/pingpongsound_svmcdcd.mdl"));
   // Load wave data buffer
   if (!file_name.isEmpty())
   {
-    WaveFile AudioFile(file_name.toStdString());
+    MCBinaryData FileData;
+    MC::DoubleList Temp;
 
-    if (AudioFile.GetBitsPerSample() != 16 || (int)AudioFile.GetAudioFormat() != 1 ||
-        AudioFile.GetNumChannels() != 1 || AudioFile.GetSampleRate() != 16000)
-    {
-      printf("Only 16 bit mono PCM Wave files with 16 kHz sample rate are supported (file: %s)!", qPrintable(file_name));
-      exit(1);
-    }
-    WavBuffer.resize(AudioFile.GetDataSize());
-    memcpy(WavBuffer.data(), AudioFile.GetData(), (int)AudioFile.GetDataSize());
+    MASoundData::LoadFromFile(file_name.toStdString(), WavBuffer, Temp, 0, 0);
+
     QSound::play(file_name);
     Update();
     connect(&ResultTextResetTimer, SIGNAL(timeout()), this, SLOT(ResetResultText()));
@@ -207,17 +111,17 @@ void SoundRecorder::Update()
 {
   if (WavBuffer.size() > 0)
   {
-    memcpy(Buffer, &WavBuffer.data()[BufferPos], SlidingWindowSize*2);
-    BufferPos += SlidingWindowSize;
-    StateMachine(DoRecognition(), (int)((float)BufferPos / 32));
-    if (WavBuffer.size()-BufferPos < SlidingWindowSize*2)
+    Buffer = MC::DoubleList(WavBuffer.begin()+BufferPos, WavBuffer.begin()+BufferPos+SlidingWindowSize);
+    BufferPos += SlidingWindowSize / 2;
+    StateMachine(DoRecognition(), (int)((float)BufferPos / 16000*1000));
+    if ((int)WavBuffer.size()-BufferPos < SlidingWindowSize)
     {
       exit(0);
     }
     QTimer::singleShot(64, this, SLOT(Update()));
     return;
   }
-  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize*2)
+/*  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize*2)
     return;
 
   if (!Timer.isValid())
@@ -237,118 +141,45 @@ void SoundRecorder::Update()
     BufferPos -= SlidingWindowSize;
   }
   QTimer::singleShot(30, this, SLOT(Update()));
+  */
 }
 
 
 RecognitionResult SoundRecorder::DoRecognition()
 {
   // Convert the data to double
-  std::vector<double> NewData;
-  double Power = 0;
+  double Power = MACalculateVectorStatistic(Buffer, *new MAPower<double>)*100000000;;
 
-  NewData.resize(SlidingWindowSize);
-  for (int i = 0; i < SlidingWindowSize; ++i)
-  {
-    NewData[i] = (double)(((int)Buffer[i*2+1] << 8) | (int)Buffer[i*2]);
-    Power += (NewData[i]*NewData[i]) / SlidingWindowSize / SlidingWindowSize;
-  }
-  if (Power / 1000 < 100)
-    return RecognitionResult(1.0, 1.0);
-//  printf("Power: %1.2f\n", Power / 1000);
-  // Create Hann windows
-  std::vector<std::vector<double> > Windows;
-  double* HannWindow = NULL;
+//  if (Power / 100 < 10)
+//    return RecognitionResult(1.0, 1.0);
+//  printf("Power: %1.2f\n", Power / 100);
 
-  HannWindow = xtract_init_window(HannWindowSize, XTRACT_HANN);
-  // Create the Hann windows
-  for (int i = 0; i <= (int)SlidingWindowSize-HannWindowSize; i += HannWindowSize / 3)
-  {
-    std::vector<double> Window;
+  AudioAnalyzer.AddSoundData(Buffer);
+  MC::FloatTable FeatureVectors = AudioAnalyzer.GetFeatureVectors();
+  MC::FloatList Labels, Confidences;
 
-    Window.resize(HannWindowSize);
-    xtract_windowed((double*)&NewData[i], HannWindowSize, HannWindow, (double*)&Window[0]);
-    Windows.push_back(Window);
-  }
-  xtract_free_window(HannWindow);
-  // Generate the MFCC feature frames
-  const int MfccCount = 12;
-  double UserData[4] = { (double)SampleRate / HannWindowSize, XTRACT_MAGNITUDE_SPECTRUM, 0.0f, 0.0f};
-  std::vector<std::vector<float> > FeatureTable;
-  xtract_mel_filter* Pmfcc = (xtract_mel_filter*)malloc(sizeof(xtract_mel_filter));
-  std::vector<std::vector<double> > MfccFrames;
+  FeatureVectors = MAAnalyzer::CompactFeatureVectors(FeatureVectors, 5);
+//  Labels = ClassifierTree->Predict(FeatureVectors, Confidences);
+//  Labels = ClassifierForest->Predict(FeatureVectors, Confidences);
+  Labels = ClassifierSvm->Predict(FeatureVectors, Confidences);
 
-  Pmfcc->n_filters = 25;
-  Pmfcc->filters = (double**)malloc(Pmfcc->n_filters*sizeof(double*));
-  for (int i = 0; i < Pmfcc->n_filters; ++i)
-  {
-    Pmfcc->filters[i] = (double*)malloc(HannWindowSize*sizeof(double));
-  }
-  xtract_init_fft(HannWindowSize, XTRACT_SPECTRUM);
-  xtract_init_mfcc(HannWindowSize, SampleRate, XTRACT_EQUAL_AREA, 1, SampleRate,
-                   Pmfcc->n_filters, Pmfcc->filters);
-
-  // Generate the mfcc frames
-  for (unsigned int i = 0; i < Windows.size(); ++i)
-  {
-    std::vector<double> Temp;
-    std::vector<double> MfccCoefficients;
-    std::vector<double> Spectrum(HannWindowSize, 0);
-
-    Temp.resize(Pmfcc->n_filters);
-    MfccCoefficients.resize(MfccCount);
-    xtract_spectrum((double*)&(Windows[i][0]), HannWindowSize, UserData, (double*)&(Spectrum[0]));
-    xtract_mfcc((double*)&(Spectrum[0]), HannWindowSize, Pmfcc, (double*)&Temp[0]);
-    memcpy(&MfccCoefficients[0], &Temp[0], sizeof(double)*MfccCount);
-    MfccFrames.push_back(MfccCoefficients);
-  }
-  for (unsigned int i = 0; i < Windows.size(); ++i)
-  {
-    std::vector<float> FinalVector;
-
-    // Add MFCC components except the first to the feature vector
-    for (unsigned int i1 = 1; i1 < MfccFrames[i].size(); ++i1)
-    {
-      FinalVector.push_back((float)MfccFrames[i][i1]);
-    }
-    FeatureTable.push_back(FinalVector);
-  }
-  free(Pmfcc);
-  xtract_free_fft();
-  // Do the recognition with majority voting
-  std::vector<float> Labels;
-
-  for (unsigned int i = 0; i < FeatureTable.size(); ++i)
-  {
-    // Convert the feature vector to OpenCV's version
-    cv::Mat TestingSample(1, FeatureTable[0].size(), cv::DataType<float>::type);
-    cv::Mat TestingLabel(1, 1, cv::DataType<float>::type);
-
-    for (unsigned int i1 = 0; i1 < FeatureTable[0].size(); ++i1)
-    {
-      TestingSample.at<float>(0, i1) = FeatureTable[i][i1];
-    }
-//    PrintContainerAsFloats(FeatureTable[i]);
-    TestingLabel.at<float>(0) = dynamic_cast<CvRTrees*>(ClassifierForest.get())->predict(TestingSample, cv::Mat());
-//    TestingLabel.at<float>(0) = dynamic_cast<CvDTree*>(ClassifierTree.get())->predict(TestingSample, cv::Mat())->value;
-    Labels.push_back(TestingLabel.at<float>(0));
-  }
-  float Winner = GetMostFrequentItemFromContainer<float>(Labels);
-  int Count = ItemCountInContainer(Labels, Winner);
+  float Winner = MCGetMostFrequentItemFromContainer<float>(Labels);
+  int Count = MCItemCountInContainer(Labels, Winner);
   RecognitionResult Result(Winner, (float)Count / Labels.size());
 
-  if (Result.second < 0.5)
-    return RecognitionResult(1.0, 1.0);
+//  if (Result.second < 0.3)
+//    return RecognitionResult(1.0, 1.0);
 
   std::string Prefix;
 
   if (WavBuffer.size() > 0)
-    Prefix = ToStr<int>(BufferPos / 32)+" ms: ";
+    Prefix = MCToStr<int>(BufferPos / 16)+" ms: ";
   if (Winner == 2.0)
-    printf("%sPing (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 1000);
+    printf("%sPing (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
   if (Winner == 3.0)
-    printf("%sPong (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 1000);
+    printf("%sPong (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
   if (Winner == 4.0)
-    printf("%sTalk (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 1000);
+    printf("%sTalk (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
 
   return Result;
 }

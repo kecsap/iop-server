@@ -1,8 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>dt.xml</file>
-        <file>rt.xml</file>
+        <file>pingpongsound_dt.mdl</file>
+        <file>pingpongsound_rt.mdl</file>
+        <file>pingpongsound_svmcdcd.mdl</file>
     </qresource>
 </RCC>
 

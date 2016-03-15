@@ -2,29 +2,12 @@ TEMPLATE = app
 
 QT += qml quick widgets multimedia
 
-LIBS += -lopencv_core -lopencv_ml
+INCLUDEPATH += \
+    /usr/include/libmindcommon \
+    /usr/include/libmindaibo \
+    /usr/include/libmindeye
 
-DEFINES += USE_OOURA
-
-INCLUDEPATH += libs/libxtract
-
-QMAKE_CFLAGS += -Wno-unused-parameter -std=c99
-
-SOURCES += \
-    libs/libxtract/c-ringbuf/ringbuf.c \
-    libs/libxtract/dywapitchtrack/dywapitchtrack.c \
-    libs/libxtract/ooura/fftsg.c \
-    libs/libxtract/WaveFile.cpp \
-    libs/libxtract/delta.c \
-    libs/libxtract/descriptors.c \
-    libs/libxtract/fini.c \
-    libs/libxtract/helper.c \
-    libs/libxtract/init.c \
-    libs/libxtract/libxtract.c \
-    libs/libxtract/scalar.c \
-    libs/libxtract/stateful.c \
-    libs/libxtract/vector.c \
-    libs/libxtract/window.c
+LIBS += -lmindcommon -lmindaibo -lmindeye
 
 SOURCES += \
     main.cpp \

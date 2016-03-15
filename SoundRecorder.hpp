@@ -1,14 +1,14 @@
 /*
  *  This file is part of the iop_sound_prototype
  *
- *  Copyright (C) 2015 Csaba Kertész (csaba.kertesz@gmail.com)
+ *  Copyright (C) 2015-2016 Csaba Kertész (csaba.kertesz@gmail.com)
  *
- *  AiBO+ is free software; you can redistribute it and/or modify
+ *  iop_sound_prototype is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
- *  AiBO+ is distributed in the hope that it will be useful,
+ *  iop_sound_prototype is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
@@ -25,13 +25,14 @@
 #include <QTime>
 #include <qtimer.h>
 
-#include <opencv/ml.h>
+#include <ml/MAModel.hpp>
+#include <sound/MASoundEventAnalyzer.hpp>
+
+#include <MCBinaryData.hpp>
 
 #include <boost/scoped_ptr.hpp>
 
 #include <utility>
-
-class CvStatModel;
 
 typedef std::pair<float, float> RecognitionResult;
 
@@ -50,16 +51,23 @@ public Q_SLOTS:
   void ShowText(const QString& text, int duration = 500);
   void ResetResultText();
 
+Q_SIGNALS:
+  void PingHappened();
+  void PongHappened();
+  void TalkHappened();
+
 protected:
   boost::scoped_ptr<QAudioInput> AudioInput;
   QIODevice* Device;
   QAudioRecorder AudioRecorder;
-  boost::scoped_ptr<CvStatModel> ClassifierTree;
-  boost::scoped_ptr<CvStatModel> ClassifierForest;
-  unsigned char Buffer[100000];
+  boost::scoped_ptr<MAModel> ClassifierTree;
+  boost::scoped_ptr<MAModel> ClassifierForest;
+  boost::scoped_ptr<MAModel> ClassifierSvm;
+  MASoundEventAnalyzer AudioAnalyzer;
+  MC::DoubleList Buffer;
   int BufferPos;
   QTime Timer;
-  std::vector<char> WavBuffer;
+  MC::DoubleList WavBuffer;
   QObject* Page;
   QTimer ResultTextResetTimer;
 };
