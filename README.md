@@ -1,1 +1,1 @@
-# iop_sound_prototype
+# Internet of Pings (server)
