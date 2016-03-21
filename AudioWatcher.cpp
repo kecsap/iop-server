@@ -1,14 +1,14 @@
 /*
- *  This file is part of the iop_sound_prototype
+ *  This file is part of the iop-server
  *
  *  Copyright (C) 2015-2016 Csaba Kertész (csaba.kertesz@gmail.com)
  *
- *  iop_sound_prototype is free software; you can redistribute it and/or modify
+ *  iop-server is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
  *  (at your option) any later version.
  *
- *  iop_sound_prototype is distributed in the hope that it will be useful,
+ *  iop-server is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
@@ -19,12 +19,12 @@
  *
  */
 
-#include "SoundRecorder.hpp"
+#include "AudioWatcher.hpp"
 
 #include <core/MASamplesStatistics.hpp>
+#include <ml/MAModel.hpp>
 #include <sound/MASoundData.hpp>
 
-#include <MCBinaryData.hpp>
 #include <MCContainers.hpp>
 #include <MCDefs.hpp>
 
@@ -32,9 +32,12 @@
 #include <qfile.h>
 #include <qresource.h>
 #include <qsound.h>
+#include <QtConcurrentRun>
 
 #include <boost/unordered_map.hpp>
 
+namespace
+{
 const int SampleRate = 16000;
 const int SlidingWindowSize = 2048;
 
@@ -54,38 +57,29 @@ QString GetAudioDevice()
 
 MAModel* GetClassifier(const QString& resource_str)
 {
-  QResource XmlResource(resource_str);
-  QFile ClassifierFile(XmlResource.absoluteFilePath());
-  QDataStream InputStream(&ClassifierFile);
-  MCBinaryData DataBuffer(ClassifierFile.size());
+  MCBinaryData DataBuffer;
 
-  ClassifierFile.open(QIODevice::ReadOnly);
-  InputStream.readRawData((char*)DataBuffer.GetData(), ClassifierFile.size());
-  ClassifierFile.close();
+  DataBuffer.LoadFromQtResource(resource_str);
   return MAModel::Decode(DataBuffer);
 }
+}
 
-SoundRecorder::SoundRecorder(const QString& file_name, QObject* root_object) : Device(NULL), AudioAnalyzer(SampleRate, 5),
-  BufferPos(0), Page(NULL)
+AudioWatcher::AudioWatcher(const QString& audio_file) : Device(NULL), AudioAnalyzer(SampleRate, 5), BufferPos(0)
 {
-  if (root_object)
-    Page = root_object->findChild<QObject*>("fuckYoo");
   // Load the classifiers
   ClassifierTree.reset(GetClassifier(":/pingpongsound_dt.mdl"));
   ClassifierForest.reset(GetClassifier(":/pingpongsound_rt.mdl"));
   ClassifierSvm.reset(GetClassifier(":/pingpongsound_svmcdcd.mdl"));
   // Load wave data buffer
-  if (!file_name.isEmpty())
+  if (!audio_file.isEmpty())
   {
     MCBinaryData FileData;
     MC::DoubleList Temp;
 
-    MASoundData::LoadFromFile(file_name.toStdString(), WavBuffer, Temp, 0, 0);
+    MASoundData::LoadFromFile(audio_file.toStdString(), WavBuffer, Temp, 0, 0);
 
-    QSound::play(file_name);
-    Update();
-    connect(&ResultTextResetTimer, SIGNAL(timeout()), this, SLOT(ResetResultText()));
-    ResultTextResetTimer.setSingleShot(true);
+    QSound::play(audio_file);
+    AudioUpdate();
     return;
   }
   // Set up the audio recording
@@ -102,12 +96,17 @@ SoundRecorder::SoundRecorder(const QString& file_name, QObject* root_object) : D
   AudioInput->setBufferSize(256);
 //  AudioInput->setNotifyInterval(30);
   Device = AudioInput->start();
-  connect(AudioInput.get(), SIGNAL(notify()), this, SLOT(Update()));
-  QTimer::singleShot(200, this, SLOT(Update()));
+  connect(AudioInput.get(), SIGNAL(notify()), this, SLOT(AudioUpdate()));
+  QTimer::singleShot(200, this, SLOT(AudioUpdate()));
 }
 
 
-void SoundRecorder::Update()
+AudioWatcher::~AudioWatcher()
+{
+}
+
+
+void AudioWatcher::AudioUpdate()
 {
   if (WavBuffer.size() > 0)
   {
@@ -118,7 +117,7 @@ void SoundRecorder::Update()
     {
       exit(0);
     }
-    QTimer::singleShot(64, this, SLOT(Update()));
+    QTimer::singleShot(64, this, SLOT(AudioUpdate()));
     return;
   }
 /*  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize*2)
@@ -140,12 +139,12 @@ void SoundRecorder::Update()
     memcpy(&Buffer[0], &Buffer[SlidingWindowSize], BufferPos-SlidingWindowSize);
     BufferPos -= SlidingWindowSize;
   }
-  QTimer::singleShot(30, this, SLOT(Update()));
+  QTimer::singleShot(30, this, SLOT(AudioUpdate()));
   */
 }
 
 
-RecognitionResult SoundRecorder::DoRecognition()
+RecognitionResult AudioWatcher::DoRecognition()
 {
   // Convert the data to double
   double Power = MACalculateVectorStatistic(Buffer, *new MAPower<double>)*100000000;;
@@ -185,7 +184,7 @@ RecognitionResult SoundRecorder::DoRecognition()
 }
 
 
-void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
+void AudioWatcher::StateMachine(RecognitionResult result, int timestamp)
 {
   static int LastPingTimestamp = 0.0;
   static int LastPongTimestamp = 0.0;
@@ -215,29 +214,29 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     // Incorrect starting serve
     if (PingCount == 1 && PongCount != 2)
     {
-      ShowText("Point for Opponent", 2000);
+//      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
     // Evaluate the match when the points are equal
     if (PingCount > 2 && PingCount % 2 == 1 && PingCount == PongCount)
     {
-      ShowText("Point for Server", 2000);
+//      ShowText("Point for Server", 2000);
       goto cleanup;
     }
     if (PingCount > 2 && PingCount % 2 == 0 && PingCount == PongCount)
     {
-      ShowText("Point for Opponent", 2000);
+//      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
     // Evaluate the match when the points are NOT equal
     if (PingCount > 2 && PingCount % 2 == 1 && PingCount != PongCount)
     {
-      ShowText("Point for Server", 2000);
+//      ShowText("Point for Server", 2000);
       goto cleanup;
     }
     if (PingCount > 2 && PingCount % 2 == 0 && PingCount != PongCount)
     {
-      ShowText("Point for Opponent", 2000);
+//      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
     printf("CAN'T DETERMINATE THE CAUSE\n");
@@ -250,7 +249,7 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     {
       TalkCounter = 0;
       printf("%d ms: Bullshit\n", timestamp);
-      ShowText("Bullshit");
+//      ShowText("Bullshit");
     }
   } else {
     TalkCounter = 0;
@@ -331,12 +330,12 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
         PingCount = 1;
         LastPingTimestamp = PongEventStart;
         printf("%d ms: Ping (points - 1:0)!\n", timestamp);
-        ShowText("Ping");
+//        ShowText("Ping");
       }
       PongCount++;
       LastPongTimestamp = timestamp;
       printf("%d ms: Pong\n", PongEventStart);
-      ShowText("Pong");
+//      ShowText("Pong");
       PongEventChances.clear();
     } else {
       PongEventChances.clear();
@@ -363,18 +362,18 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     }
     PingEventChances.clear();
     printf("%d ms: Ping (points %d:%d)!\n", timestamp, PingCount+1, PongCount);
-    ShowText("Ping");
+//    ShowText("Ping");
     // The previous is the last valid ping in the case when the previous was less than 300 msec ago.
     if (timestamp-LastPingTimestamp < 300)
     {
       if (PingCount > 2 && PingCount % 2 == 1 && PingCount != PongCount)
       {
-        ShowText("Point for Opponent", 2000);
+//        ShowText("Point for Opponent", 2000);
         goto cleanup;
       }
       if (PingCount > 2 && PingCount % 2 == 0 && PingCount != PongCount)
       {
-        ShowText("Point for Server", 2000);
+//        ShowText("Point for Server", 2000);
         goto cleanup;
       }
     }
@@ -382,17 +381,17 @@ void SoundRecorder::StateMachine(RecognitionResult result, int timestamp)
     LastPingTimestamp = timestamp;
     if (PingCount == 2 && PongCount != 2)
     {
-      ShowText("Point for Opponent", 2000);
+//      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
     if (PingCount > 2 && PingCount % 2 == 1 && PingCount != PongCount)
     {
-      ShowText("Point for Server", 2000);
+//      ShowText("Point for Server", 2000);
       goto cleanup;
     }
     if (PingCount > 2 && PingCount % 2 == 0 && PingCount != PongCount)
     {
-      ShowText("Point for Opponent", 2000);
+//      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
   }
@@ -408,22 +407,4 @@ cleanup:
   PongEventStart = 0;
   PongEventChances.clear();
   LastPointTimestamp = timestamp;
-}
-
-
-void SoundRecorder::ShowText(const QString& text, int duration)
-{
-  printf("Show: %s\n", qPrintable(text));
-  if (Page)
-  {
-    Page->setProperty("resultText", text);
-    ResultTextResetTimer.start(duration);
-  }
-}
-
-
-void SoundRecorder::ResetResultText()
-{
-  if (Page)
-    Page->setProperty("resultText", "");
 }

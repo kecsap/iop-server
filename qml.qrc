@@ -4,6 +4,7 @@
         <file>pingpongsound_dt.mdl</file>
         <file>pingpongsound_rt.mdl</file>
         <file>pingpongsound_svmcdcd.mdl</file>
+        <file>rpi.cal</file>
     </qresource>
 </RCC>
 

@@ -3,26 +3,24 @@ import QtQuick.Window 2.0
 
 Window {
     visible: true
-Rectangle{
+    width: 640
+    height: 360
+
+Rectangle {
     id: fuckYoo
     objectName: "fuckYoo"
+
+    property alias cameraImage: cameraImage.source
+
     anchors.fill: parent
 
-    property alias resultText: resultLabel.text
-
-    MouseArea {
+    // Camera image
+    Image {
+        id: cameraImage
         anchors.fill: parent
-        onClicked: {
-            Qt.quit();
-        }
-    }
-
-
-    Text {
-        id: resultLabel
-        font.pixelSize: 100
-        text: ""
-        anchors.centerIn: parent
+        smooth: true
+        visible: true
+        source: "image://camera/image.png"
     }
 }
 
