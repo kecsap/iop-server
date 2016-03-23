@@ -43,11 +43,32 @@ VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapt
   RotationAngle(MCFloatInfinity()), Undistort(true), DebugCorners(false),
   DebugMotions(false)
 {
-  // Load the calibration data
-  MCBinaryData DataBuffer;
+  // Set the calibration data manually because the portable archive does not work by some reason
+//  MCBinaryData DataBuffer;
 
-  DataBuffer.LoadFromQtResource(":/rpi.cal");
-  Calibration.reset(MECalibration::Decode(DataBuffer));
+//  DataBuffer.LoadFromQtResource(":/rpi.cal");
+//  Calibration.reset(MECalibration::Decode(DataBuffer));
+
+  MC::FloatTable Intrinsics;
+  MC::FloatList DistortionCoefficients;
+
+  Intrinsics.resize(3);
+  Intrinsics[0].push_back(930);
+  Intrinsics[0].push_back(0);
+  Intrinsics[0].push_back(320);
+  Intrinsics[1].push_back(0);
+  Intrinsics[1].push_back(900);
+  Intrinsics[1].push_back(180);
+  Intrinsics[2].push_back(0);
+  Intrinsics[2].push_back(0);
+  Intrinsics[2].push_back(1);
+  DistortionCoefficients.push_back(0.06);
+  DistortionCoefficients.push_back(-4.3);
+  DistortionCoefficients.push_back(0.03);
+  DistortionCoefficients.push_back(0.04);
+  DistortionCoefficients.push_back(0.1);
+  Calibration.reset(new MECalibration(640, 360, Intrinsics, DistortionCoefficients));
+
   // Start the capture device
   if (!video_file.isEmpty())
   {
