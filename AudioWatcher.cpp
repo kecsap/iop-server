@@ -21,12 +21,12 @@
 
 #include "AudioWatcher.hpp"
 
-#include <core/MASamplesStatistics.hpp>
 #include <ml/MAModel.hpp>
 #include <sound/MASoundData.hpp>
 
 #include <MCContainers.hpp>
 #include <MCDefs.hpp>
+#include <MCSampleStatistics.hpp>
 
 #include <qdatastream.h>
 #include <qfile.h>
@@ -147,7 +147,7 @@ void AudioWatcher::AudioUpdate()
 RecognitionResult AudioWatcher::DoRecognition()
 {
   // Convert the data to double
-  double Power = MACalculateVectorStatistic(Buffer, *new MAPower<double>)*100000000;;
+  double Power = MCCalculateVectorStatistic(Buffer, *new MCPower<double>)*100000000;;
 
 //  if (Power / 100 < 10)
 //    return RecognitionResult(1.0, 1.0);

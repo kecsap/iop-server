@@ -21,7 +21,7 @@
 
 #include "GameWatcher.hpp"
 
-#include <MPContext.hpp>
+#include <MSContext.hpp>
 
 #include <core/MALog.hpp>
 
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
 {
   printf("Internet of Ping Server\n");
 
-  boost::scoped_ptr<MPContext> Context(new MPContext(argc, argv, true));
+  boost::scoped_ptr<MSContext> Context(new MSContext(argc, argv, true));
   MSContext::ArgSearchResult Result;
   QString AudioFile;
   QString VideoFile;
@@ -111,4 +111,3 @@ int main(int argc, char *argv[])
 
   return QApplication::instance()->exec();
 }
-

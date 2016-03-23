@@ -10,20 +10,22 @@ INCLUDEPATH += \
     /usr/include/libmindsession \
     /usr/include/libmindpiece
 
-LIBS += -lmindcommon -lmindaibo -lmindeye -lmindsession -lmindpiece
+LIBS += -lmindcommon -lmindaibo -lmindeye -lmindsession -lmindpiece -lopencv_core -lopencv_imgproc
 
 SOURCES += \
     main.cpp \
     AudioWatcher.cpp \
-    ImageSender.cpp \
-    VideoWatcher.cpp \
     GameWatcher.cpp \
+    ImageSender.cpp \
+    TableMarkers.cpp \
+    VideoWatcher.cpp
 
 HEADERS += \
     AudioWatcher.hpp \
+    GameWatcher.hpp \
     ImageSender.hpp \
-    VideoWatcher.hpp \
-    GameWatcher.hpp
+    TableMarkers.hpp \
+    VideoWatcher.hpp
 
 RESOURCES += qml.qrc
 

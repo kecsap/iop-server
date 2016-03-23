@@ -18,6 +18,7 @@ SET(IOP_SERVER_SRC
     main.cpp ;
     AudioWatcher.cpp ;
     ImageSender.cpp ;
+    TableMarkers.cpp ;
     VideoWatcher.cpp ;
     GameWatcher.cpp)
 
@@ -25,6 +26,7 @@ SET(IOP_SERVER_HEADERS
     AudioWatcher.hpp ;
     ImageSender.hpp ;
     VideoWatcher.hpp ;
+    TableMarkers.hpp ;
     GameWatcher.hpp)
 
 QT5_ADD_RESOURCES(IOP_SERVER_RCC_SRC qml.qrc)

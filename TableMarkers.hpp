@@ -19,25 +19,42 @@
  *
  */
 
-#ifndef Defines_hpp
-#define Defines_hpp
+#ifndef TableMarkers_hpp
+#define TableMarkers_hpp
 
-namespace IOP
-{
-typedef enum
-{
-  PingEvent = 0,
-  PongEvent,
-  TalkEvent,
-} AudioEventType;
+#include <MCSamples.hpp>
 
-typedef enum
+class MEImage;
+class MEPoint;
+
+class TableMarkers
 {
-  CaptureEvent = 0,
-  IdleEvent,
-  NormalEvent,
-  MissingCornersEvent,
-} VideoEventType;
-}
+public:
+  TableMarkers();
+  virtual ~TableMarkers();
+
+  void Reset();
+  void AddImage(MEImage& image);
+  bool IsReady();
+  bool IsAnyMissingCorner();
+  void GetRotationalCorrection(MEImage& image, float& angle, MEPoint& center);
+  void DrawMissingCorners(MEImage& image);
+  void DrawDebugSigns(MEImage& image);
+
+protected:
+  const int FrameLimit;
+  const int CornerSampleCount;
+  const int CornerRegionWidth;
+  const int CornerRegionHeight;
+  int FrameCount;
+  MCSamples<int> Corner1X;
+  MCSamples<int> Corner1Y;
+  MCSamples<int> Corner2X;
+  MCSamples<int> Corner2Y;
+  MCSamples<int> Corner3X;
+  MCSamples<int> Corner3Y;
+  MCSamples<int> Corner4X;
+  MCSamples<int> Corner4Y;
+};
 
 #endif

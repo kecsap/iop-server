@@ -24,6 +24,8 @@
 
 #include "Defines.hpp"
 
+#include <MEDefs.hpp>
+
 #include <qfuturewatcher.h>
 #include <qobject.h>
 #include <QTime>
@@ -33,6 +35,8 @@
 class MECalibration;
 class MECapture;
 class MEImage;
+class MEMotionDetection;
+class TableMarkers;
 
 class VideoWatcher : public QObject
 {
@@ -60,9 +64,15 @@ protected:
   boost::scoped_ptr<MEImage> CapturedImage;
   boost::scoped_ptr<MEImage> FinalImage;
   boost::scoped_ptr<MECalibration> Calibration;
+  boost::scoped_ptr<MEMotionDetection> MotionDetection;
+  boost::scoped_ptr<TableMarkers> Markers;
   QTime FpsTimer;
   int FrameCount;
+  float RotationAngle;
+  MEPoint RotationCenter;
   bool Undistort;
+  bool DebugCorners;
+  bool DebugMotions;
 };
 
 #endif

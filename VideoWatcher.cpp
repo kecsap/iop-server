@@ -21,9 +21,12 @@
 
 #include "VideoWatcher.hpp"
 
+#include "TableMarkers.hpp"
+
 #include <MECalibration.hpp>
 #include <MECapture.hpp>
 #include <MEImage.hpp>
+#include <MEMotionDetection.hpp>
 
 #include <MCBinaryData.hpp>
 #include <MCLog.hpp>
@@ -31,10 +34,14 @@
 #include <qfile.h>
 #include <QtConcurrentRun>
 
+#include <opencv/cv.h>
+
 #include <boost/bind.hpp>
 
-VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapture), CapturedImage(new MEImage),
-  FinalImage(new MEImage), FrameCount(0), Undistort(true)
+VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapture),
+  CapturedImage(new MEImage), FinalImage(new MEImage), FrameCount(0),
+  RotationAngle(MCFloatInfinity()), Undistort(true), DebugCorners(false),
+  DebugMotions(false)
 {
   // Load the calibration data
   MCBinaryData DataBuffer;
@@ -56,6 +63,12 @@ VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapt
 
   connect(&CaptureWatcher, SIGNAL(finished()), this, SLOT(CaptureFinished()));
   CaptureWatcher.setFuture(CaptureTask);
+  // Set table marker finder
+  Markers.reset(new TableMarkers);
+  // Set motion detection
+  MotionDetection.reset(new MEMotionDetection);
+  MotionDetection->SetParameter(MEMotionDetection::mdp_HUHistogramsPerPixel, (float)4);
+  MotionDetection->SetMode(MEMotionDetection::md_LBPHistograms);
 }
 
 
@@ -81,46 +94,78 @@ void VideoWatcher::CaptureFinished()
   QFuture<void> CaptureTask;
 
   FrameCount++;
-  if (FrameCount % 4 != 0)
-  {
-    // Start a new capture
-    CaptureTask = QtConcurrent::run(boost::bind(&VideoWatcher::CaptureImage, this));
-    CaptureWatcher.setFuture(CaptureTask);
-    return;
-  }
   *FinalImage = *CapturedImage;
+  // Start a new capture
+  CaptureTask = QtConcurrent::run(boost::bind(&VideoWatcher::CaptureImage, this));
+  CaptureWatcher.setFuture(CaptureTask);
   CheckFiles();
-  if (Undistort && FinalImage->GetWidth() == 640 && FinalImage->GetHeight() == 360)
-  {
-    FinalImage->MirrorHorizontal();
-    Calibration->Undistort(*FinalImage);
-    FinalImage->MirrorHorizontal();
-    Calibration->Undistort(*FinalImage);
-  }
-  // Calculate fps
-  if (FrameCount % 100 == 0)
-  {
-    MC_LOG("Capture speed: %1.2f fps", (float)1000 / FpsTimer.elapsed()*FrameCount);
-    FpsTimer.start();
-    FrameCount = 0;
-    MC_LOG("Average brightness level: %1.2f", FinalImage->AverageBrightnessLevel());
-  }
-  // Check if the lights are on or off
-  if (FinalImage->AverageBrightnessLevel() < 10)
-  {
-    Q_EMIT(VideoEvent(IOP::IdleEvent));
-  } else {
-    Q_EMIT(VideoEvent(IOP::NormalEvent));
-  }
   // Check if the capture process stopped by some reason
   if (!CaptureDevice->IsCapturing())
   {
     MC_LOG("Capture stopped");
     exit(0);
   }
-  // Start a new capture
-  CaptureTask = QtConcurrent::run(boost::bind(&VideoWatcher::CaptureImage, this));
-  CaptureWatcher.setFuture(CaptureTask);
+  FinalImage->ConvertBGRToRGB();
+  if (Undistort && FinalImage->GetWidth() == 640 && FinalImage->GetHeight() == 360)
+  {
+    FinalImage->MirrorHorizontal();
+    Calibration->Undistort(*FinalImage);
+    FinalImage->MirrorHorizontal();
+    Calibration->Undistort(*FinalImage);
+    // TODO: The rotational correction is too CPU expensive
+//    if (!MCIsFloatInfinity(RotationAngle))
+//    {
+//      FinalImage->Rotate(RotationCenter.X, RotationCenter.Y, RotationAngle);
+//    }
+  }
+  // Check if the lights are off
+  if (FinalImage->AverageBrightnessLevel() < 10)
+  {
+    Markers->Reset();
+    MotionDetection->Reset();
+    Q_EMIT(VideoEvent(IOP::IdleEvent));
+    Q_EMIT(VideoEvent(IOP::CaptureEvent));
+    return;
+  }
+  // Calculate fps
+  if (FrameCount % 300 == 0)
+  {
+    MC_LOG("Capture speed: %1.2f fps", (float)1000 / FpsTimer.elapsed()*FrameCount);
+    FpsTimer.start();
+    FrameCount = 0;
+    MC_LOG("Average brightness level: %1.2f", FinalImage->AverageBrightnessLevel());
+  }
+  // Corner detection
+  Markers->AddImage(*FinalImage);
+    // TODO: The rotational correction is too CPU expensive
+//  if (Markers->IsReady() && !Markers->IsAnyMissingCorner() && MCIsFloatInfinity(RotationAngle))
+//  {
+//    // Get the rotational angle and reset the marker detection
+//    Markers->GetRotationalCorrection(*FinalImage, RotationAngle, RotationCenter);
+//    Markers->Reset();
+//  }
+  // Motion detection
+  MEImage MotionFrame = *FinalImage;
+
+  MotionFrame.Resize(640 / 4, 360 / 4);
+  MotionDetection->DetectMotions(MotionFrame);
+  // Composite debug signs
+  if (DebugMotions)
+  {
+    MotionDetection->GetMotionsMask(*FinalImage);
+    // Convert the grayscale image back to RGB
+    FinalImage->Resize(640, 360);
+    FinalImage->ConvertToRGB();
+  }
+  if (DebugCorners)
+    Markers->DrawDebugSigns(*FinalImage);
+  if (Markers->IsReady() && Markers->IsAnyMissingCorner())
+  {
+    Markers->DrawMissingCorners(*FinalImage);
+    FinalImage->DrawText(160, 320, "Table not detected", 1, MEColor(255, 255, 255));
+    Q_EMIT(VideoEvent(IOP::MissingCornersEvent));
+  }
+  Q_EMIT(VideoEvent(IOP::NormalEvent));
   Q_EMIT(VideoEvent(IOP::CaptureEvent));
 }
 
@@ -136,5 +181,27 @@ void VideoWatcher::CheckFiles()
   {
     Undistort = true;
     MC_LOG("Enable the calibration");
+  }
+
+  if (QFile("debug_corners").exists() && !DebugCorners)
+  {
+    DebugCorners = true;
+    MC_LOG("Enable corner detection debugging");
+  } else
+  if (!QFile("debug_corners").exists() && DebugCorners)
+  {
+    DebugCorners = false;
+    MC_LOG("Disable corner detection debugging");
+  }
+
+  if (QFile("debug_motions").exists() && !DebugMotions)
+  {
+    DebugMotions = true;
+    MC_LOG("Enable motion detection debugging");
+  } else
+  if (!QFile("debug_motions").exists() && DebugMotions)
+  {
+    DebugMotions = false;
+    MC_LOG("Disable motion detection debugging");
   }
 }

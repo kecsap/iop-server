@@ -60,7 +60,6 @@ void ImageSender::DataArrived()
   ImageData.resize(bytesAvailable());
   printf("Read: %d bytes\n", (int)bytesAvailable());
   readData((char*)&ImageData[0], bytesAvailable());
-//  Page.setProperty("remoteCameraImage", "image://camera/image.png"+QString::number(qrand(0, 100000)));
 }
 
 

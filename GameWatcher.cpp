@@ -25,6 +25,7 @@
 #include "ImageSender.hpp"
 #include "VideoWatcher.hpp"
 
+#include <MEDefs.hpp>
 #include <MEImage.hpp>
 
 #include <qmetatype.h>
@@ -51,7 +52,7 @@ QImage ImageProvider::requestImage(const QString& id, QSize* size, const QSize& 
       if (size)
         *size = QSize(640, 360);
 
-      return QImage::fromData(EncodedImage->GetData(), EncodedImage->GetSize()).rgbSwapped();
+      return QImage::fromData(EncodedImage->GetData(), EncodedImage->GetSize());
     }
   }
   // Provide a grayscale image
