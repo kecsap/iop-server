@@ -119,6 +119,8 @@ void VideoWatcher::CaptureFinished()
   // Start a new capture
   CaptureTask = QtConcurrent::run(boost::bind(&VideoWatcher::CaptureImage, this));
   CaptureWatcher.setFuture(CaptureTask);
+  if (FrameCount % 3 == 1)
+    return;
   CheckFiles();
   // Check if the capture process stopped by some reason
   if (!CaptureDevice->IsCapturing())
@@ -171,7 +173,7 @@ void VideoWatcher::CaptureFinished()
   // Motion detection
   MEImage MotionFrame = *FinalImage;
 
-  MotionFrame.Resize(FrameWidth / 2, FrameHeight / 2);
+  MotionFrame.Resize(FrameWidth / 4, FrameHeight / 4);
   MotionDetection->DetectMotions(MotionFrame);
   // Composite debug signs
   if (DebugMotions)
