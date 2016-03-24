@@ -38,8 +38,8 @@
 
 #include <boost/bind.hpp>
 
-VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapture),
-  CapturedImage(new MEImage), FinalImage(new MEImage), FrameCount(0),
+VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHeight(180),
+  CaptureDevice(new MECapture), CapturedImage(new MEImage), FinalImage(new MEImage), FrameCount(0),
   RotationAngle(MCFloatInfinity()), Undistort(true), DebugCorners(false),
   DebugMotions(false)
 {
@@ -53,29 +53,29 @@ VideoWatcher::VideoWatcher(const QString& video_file) : CaptureDevice(new MECapt
   MC::FloatList DistortionCoefficients;
 
   Intrinsics.resize(3);
-  Intrinsics[0].push_back(930);
+  Intrinsics[0].push_back(166);
   Intrinsics[0].push_back(0);
-  Intrinsics[0].push_back(320);
+  Intrinsics[0].push_back(160);
   Intrinsics[1].push_back(0);
-  Intrinsics[1].push_back(900);
-  Intrinsics[1].push_back(180);
+  Intrinsics[1].push_back(154);
+  Intrinsics[1].push_back(90);
   Intrinsics[2].push_back(0);
   Intrinsics[2].push_back(0);
   Intrinsics[2].push_back(1);
-  DistortionCoefficients.push_back(0.06);
-  DistortionCoefficients.push_back(-4.3);
+  DistortionCoefficients.push_back(-0.12);
+  DistortionCoefficients.push_back(0.02);
+  DistortionCoefficients.push_back(0.030);
+  DistortionCoefficients.push_back(0.01);
   DistortionCoefficients.push_back(0.03);
-  DistortionCoefficients.push_back(0.04);
-  DistortionCoefficients.push_back(0.1);
-  Calibration.reset(new MECalibration(640, 360, Intrinsics, DistortionCoefficients));
+  Calibration.reset(new MECalibration(FrameWidth, FrameHeight, Intrinsics, DistortionCoefficients));
 
   // Start the capture device
   if (!video_file.isEmpty())
   {
     CaptureDevice->Start(video_file.toStdString());
   } else {
-    CaptureDevice->SetImageWidth(640);
-    CaptureDevice->SetImageHeight(360);
+    CaptureDevice->SetImageWidth(FrameWidth);
+    CaptureDevice->SetImageHeight(FrameHeight);
     CaptureDevice->Start(0);
   }
   FpsTimer.start();
@@ -126,18 +126,20 @@ void VideoWatcher::CaptureFinished()
     MC_LOG("Capture stopped");
     exit(0);
   }
-  FinalImage->ConvertBGRToRGB();
-  if (Undistort && FinalImage->GetWidth() == 640 && FinalImage->GetHeight() == 360)
+  // Be sure that the image has the expected size
+  if (FinalImage->GetWidth() != FrameWidth && FinalImage->GetHeight() != FrameHeight)
   {
-    FinalImage->MirrorHorizontal();
-    Calibration->Undistort(*FinalImage);
-    FinalImage->MirrorHorizontal();
+    FinalImage->Resize(FrameWidth, FrameHeight);
+  }
+  FinalImage->ConvertBGRToRGB();
+  if (Undistort && FinalImage->GetWidth() == FrameWidth && FinalImage->GetHeight() == FrameHeight)
+  {
     Calibration->Undistort(*FinalImage);
     // TODO: The rotational correction is too CPU expensive
-//    if (!MCIsFloatInfinity(RotationAngle))
-//    {
-//      FinalImage->Rotate(RotationCenter.X, RotationCenter.Y, RotationAngle);
-//    }
+    if (!MCIsFloatInfinity(RotationAngle))
+    {
+      FinalImage->Rotate(RotationCenter.X, RotationCenter.Y, RotationAngle);
+    }
   }
   // Check if the lights are off
   if (FinalImage->AverageBrightnessLevel() < 10)
@@ -158,24 +160,25 @@ void VideoWatcher::CaptureFinished()
   }
   // Corner detection
   Markers->AddImage(*FinalImage);
-    // TODO: The rotational correction is too CPU expensive
-//  if (Markers->IsReady() && !Markers->IsAnyMissingCorner() && MCIsFloatInfinity(RotationAngle))
-//  {
-//    // Get the rotational angle and reset the marker detection
-//    Markers->GetRotationalCorrection(*FinalImage, RotationAngle, RotationCenter);
-//    Markers->Reset();
-//  }
+  // TODO: The rotational correction is too CPU expensive
+  if (Markers->IsReady() && !Markers->IsAnyMissingCorner() && MCIsFloatInfinity(RotationAngle))
+  {
+    // Get the rotational angle and reset the marker detection
+    Markers->GetRotationalCorrection(*FinalImage, RotationAngle, RotationCenter);
+    MC_LOG("Detected rotation: %1.2f degrees", RotationAngle);
+    Markers->Reset();
+  }
   // Motion detection
   MEImage MotionFrame = *FinalImage;
 
-  MotionFrame.Resize(640 / 4, 360 / 4);
+  MotionFrame.Resize(FrameWidth / 2, FrameHeight / 2);
   MotionDetection->DetectMotions(MotionFrame);
   // Composite debug signs
   if (DebugMotions)
   {
     MotionDetection->GetMotionsMask(*FinalImage);
     // Convert the grayscale image back to RGB
-    FinalImage->Resize(640, 360);
+    FinalImage->Resize(FrameWidth, FrameHeight);
     FinalImage->ConvertToRGB();
   }
   if (DebugCorners)
@@ -183,7 +186,7 @@ void VideoWatcher::CaptureFinished()
   if (Markers->IsReady() && Markers->IsAnyMissingCorner())
   {
     Markers->DrawMissingCorners(*FinalImage);
-    FinalImage->DrawText(160, 320, "Table not detected", 1, MEColor(255, 255, 255));
+    FinalImage->DrawText(60, 100, "Table not detected", 0.6, MEColor(255, 255, 255));
     Q_EMIT(VideoEvent(IOP::MissingCornersEvent));
   }
   Q_EMIT(VideoEvent(IOP::NormalEvent));

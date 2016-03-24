@@ -41,11 +41,15 @@ public:
   void DrawMissingCorners(MEImage& image);
   void DrawDebugSigns(MEImage& image);
 
+private:
+  MEPoint FindCorner(MEImage& image, int x1, int y1, int x2, int y2);
+
 protected:
   const int FrameLimit;
   const int CornerSampleCount;
   const int CornerRegionWidth;
   const int CornerRegionHeight;
+  const int RegionGap;
   int FrameCount;
   MCSamples<int> Corner1X;
   MCSamples<int> Corner1Y;

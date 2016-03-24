@@ -59,6 +59,8 @@ Q_SIGNALS:
   void VideoEvent(IOP::VideoEventType event);
 
 protected:
+  const int FrameWidth;
+  const int FrameHeight;
   QFutureWatcher<void> CaptureWatcher;
   boost::scoped_ptr<MECapture> CaptureDevice;
   boost::scoped_ptr<MEImage> CapturedImage;

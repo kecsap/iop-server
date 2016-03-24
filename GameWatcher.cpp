@@ -97,11 +97,10 @@ void GameWatcher::VideoEvent(IOP::VideoEventType event)
     StaticImage.reset(new MEImage(VideoListener->GetCapturedImage()));
     if (InIdle)
     {
-      StaticImage->DrawText(350, 320, "Lights off", 1.1, MEColor(255, 255, 255));
+      StaticImage->DrawText(175, 160, "Lights off", 0.6, MEColor(255, 255, 255));
     }
     if (Page)
     {
-//      StaticImage->DrawRectangle(0, 0, 140, 120, MEColor(44, 244, 30), false);
       Page->setProperty("cameraImage", "image://camera/image.jpg"+QString::number(MCRand<int>(0, 100000)));
     }
     if (ImageSocket.get())

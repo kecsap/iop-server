@@ -239,7 +239,7 @@ void AudioWatcher::StateMachine(RecognitionResult result, int timestamp)
 //      ShowText("Point for Opponent", 2000);
       goto cleanup;
     }
-    printf("CAN'T DETERMINATE THE CAUSE\n");
+//    printf("CAN'T DETERMINATE THE CAUSE\n");
   }
   // Check the talk periods
   if (result.first == 4.0)
