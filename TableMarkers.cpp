@@ -273,6 +273,12 @@ MEPoint TableMarkers::FindCorner(MEImage& image, int x1, int y1, int x2, int y2)
     if (WhiteCounter > 10)
       PositionsX.push_back(x);
   }
+  if (PositionsX.empty() || PositionsY.empty())
+    return MEPoint(-1, -1);
+
+  if (PositionsX.size() == 1 || PositionsY.size() == 1)
+    return MEPoint(PositionsX[0], PositionsY[0]);
+
   int PosX = x1+(int)MCCalculateVectorStatistic(PositionsX, *new MCArithmeticMean<int>);
   int PosY = y1+(int)MCCalculateVectorStatistic(PositionsY, *new MCArithmeticMean<int>);
 
