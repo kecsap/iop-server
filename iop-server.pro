@@ -10,7 +10,7 @@ INCLUDEPATH += \
     /usr/include/libmindsession \
     /usr/include/libmindpiece
 
-LIBS += -lmindcommon -lmindaibo -lmindeye -lmindsession -lmindpiece -lopencv_core -lopencv_imgproc
+LIBS += -lmindcommon -lmindaibo -lmindeye -lmindsession -lopencv_core -lopencv_imgproc
 
 SOURCES += \
     main.cpp \

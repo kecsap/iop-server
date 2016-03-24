@@ -12,7 +12,7 @@ INCLUDE(/usr/local/Qt-5.6.0/lib/cmake/Qt5Quick/Qt5QuickConfig.cmake)
 INCLUDE(/usr/local/Qt-5.6.0/lib/cmake/Qt5Multimedia/Qt5MultimediaConfig.cmake)
 
 INCLUDE_DIRECTORIES(/usr/include/libmindcommon /usr/include/libmindaibo /usr/include/libmindeye)
-INCLUDE_DIRECTORIES(/usr/include/libmindsession /usr/include/libmindpiece)
+INCLUDE_DIRECTORIES(/usr/include/libmindsession)
 
 SET(IOP_SERVER_SRC
     main.cpp ;
