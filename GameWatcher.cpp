@@ -67,16 +67,21 @@ GameWatcher::GameWatcher(const QString& audio_file, const QString& video_file, c
                          QObject* root_object) : Page(NULL), InIdle(true)
 {
   qRegisterMetaType<IOP::VideoEventType>("IOP::VideoEventType");
+  qRegisterMetaType<IOP::AudioEventType>("IOP::AudioEventType");
   AudioListener.reset(new AudioWatcher(audio_file));
+  connect(AudioListener.get(), SIGNAL(AudioEvent(IOP::AudioEventType)),
+          this, SLOT(AudioEvent(IOP::AudioEventType)));
   if (!wallpi_ip.isEmpty())
     ImageSocket.reset(new ImageSender(wallpi_ip));
   VideoListener.reset(new VideoWatcher(video_file));
-  connect(VideoListener.get(), SIGNAL(VideoEvent(IOP::VideoEventType)), this, SLOT(VideoEvent(IOP::VideoEventType)));
+  connect(VideoListener.get(), SIGNAL(VideoEvent(IOP::VideoEventType)),
+          this, SLOT(VideoEvent(IOP::VideoEventType)));
+  connect(VideoListener.get(), SIGNAL(StartAudio()), AudioListener.get(), SLOT(StartPlayback()));
+  connect(AudioListener.get(), SIGNAL(Timestamp(int)), VideoListener.get(), SLOT(AudioTimestamp(int)));
   if (root_object)
   {
     Page = root_object->findChild<QObject*>("fuckYoo");
   }
-  connect(&FileWatcher, SIGNAL(fileChanged(const QString&)), this, SLOT(FileChanged(const QString&)));
 }
 
 
@@ -87,6 +92,12 @@ GameWatcher::~GameWatcher()
 
 void GameWatcher::AudioEvent(IOP::AudioEventType event)
 {
+  if (event == IOP::PingEvent)
+    ShowStatusText("Ping");
+  if (event == IOP::PongEvent)
+    ShowStatusText("Pong");
+  if (event == IOP::TalkEvent)
+    ShowStatusText("Blabla");
 }
 
 
@@ -98,6 +109,10 @@ void GameWatcher::VideoEvent(IOP::VideoEventType event)
     if (InIdle)
     {
       StaticImage->DrawText(175, 160, "Lights off", 0.6, MEColor(255, 255, 255));
+    }
+    if (StatusTextTimer.isValid() && StatusTextTimer.elapsed() < 500)
+    {
+      StaticImage->DrawText(140, 160, StatusText.toStdString(), 0.6, MEColor(255, 255, 255));
     }
     if (Page)
     {
@@ -121,31 +136,9 @@ void GameWatcher::VideoEvent(IOP::VideoEventType event)
 }
 
 
-void GameWatcher::ShowStatusText(const QString& text, int duration)
+void GameWatcher::ShowStatusText(const QString& text)
 {
-  printf("Show: %s\n", qPrintable(text));
-  if (Page)
-  {
-    Page->setProperty("resultText", text);
-    StatusTextResetTimer.start(duration);
-  }
-}
-
-
-void GameWatcher::ResetStatusText()
-{
-  if (Page)
-    Page->setProperty("resultText", "");
-}
-
-
-void GameWatcher::FileChanged(const QString& /*path*/)
-{
-/*  if (path.contains("no_calibration"))
-  {
-    if (QFile(path).exists())
-      Calibration = true;
-    else
-      Calibration = false;
-  } */
+  StatusText = text;
+  StatusTextTimer.start();
+  MC_LOG("Show status text: %s", qPrintable(text));
 }

@@ -33,15 +33,16 @@
 
 #include <qfile.h>
 #include <QtConcurrentRun>
+#include <qtimer.h>
 
 #include <opencv/cv.h>
 
 #include <boost/bind.hpp>
 
 VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHeight(180),
-  CaptureDevice(new MECapture), CapturedImage(new MEImage), FinalImage(new MEImage), FrameCount(0),
-  RotationAngle(MCFloatInfinity()), Undistort(true), DebugCorners(false),
-  DebugMotions(false)
+  FrameDuration(34), FrameCount(0), OverallFrameCount(0), WaitDuration(0), CaptureDevice(new MECapture),
+  CapturedImage(new MEImage), FinalImage(new MEImage), RotationAngle(MCFloatInfinity()),
+  Undistort(true), DebugCorners(false), DebugMotions(false)
 {
   // Set the calibration data manually because the portable archive does not work by some reason
 //  MCBinaryData DataBuffer;
@@ -73,6 +74,8 @@ VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHe
   if (!video_file.isEmpty())
   {
     CaptureDevice->Start(video_file.toStdString());
+    // The playback must go with full frame-rate and it will be adjusted automatically
+    CaptureDevice->SetPlaybackFPS(1000);
   } else {
     CaptureDevice->SetImageWidth(FrameWidth);
     CaptureDevice->SetImageHeight(FrameHeight);
@@ -104,6 +107,12 @@ const MEImage& VideoWatcher::GetCapturedImage()
 }
 
 
+void VideoWatcher::AudioTimestamp(int timestamp)
+{
+  WaitDuration = ((int)(FrameDuration*OverallFrameCount)-timestamp) / 2;
+}
+
+
 void VideoWatcher::CaptureImage()
 {
   CaptureDevice->CaptureFrame(*CapturedImage);
@@ -113,9 +122,20 @@ void VideoWatcher::CaptureImage()
 void VideoWatcher::CaptureFinished()
 {
   QFuture<void> CaptureTask;
+  static bool AudioStarted = false;
+
+  // In debug mode, keep the audio and video playback in sync
+  if (WaitDuration > 0)
+    MCSleep(WaitDuration);
 
   FrameCount++;
+  OverallFrameCount++;
   *FinalImage = *CapturedImage;
+  if (AudioStarted == false)
+  {
+    QTimer::singleShot(100, this, SIGNAL(StartAudio()));
+    AudioStarted = true;
+  }
   // Start a new capture
   CaptureTask = QtConcurrent::run(boost::bind(&VideoWatcher::CaptureImage, this));
   CaptureWatcher.setFuture(CaptureTask);
@@ -173,8 +193,8 @@ void VideoWatcher::CaptureFinished()
   // Motion detection
   MEImage MotionFrame = *FinalImage;
 
-  MotionFrame.Resize(FrameWidth / 4, FrameHeight / 4);
-  MotionDetection->DetectMotions(MotionFrame);
+//  MotionFrame.Resize(FrameWidth / 4, FrameHeight / 4);
+//  MotionDetection->DetectMotions(MotionFrame);
   // Composite debug signs
   if (DebugMotions)
   {

@@ -24,10 +24,9 @@
 
 #include "Defines.hpp"
 
-#include <QFileSystemWatcher>
 #include <qobject.h>
 #include <qquickimageprovider.h>
-#include <qtimer.h>
+#include <QTime>
 
 #include <boost/scoped_ptr.hpp>
 
@@ -55,19 +54,15 @@ public Q_SLOTS:
 
   void AudioEvent(IOP::AudioEventType event);
   void VideoEvent(IOP::VideoEventType event);
-  void ShowStatusText(const QString& text, int duration = 500);
-  void ResetStatusText();
-
-private Q_SLOTS:
-  void FileChanged(const QString& path);
+  void ShowStatusText(const QString& text);
 
 protected:
   QObject* Page;
-  QTimer StatusTextResetTimer;
+  QString StatusText;
+  QTime StatusTextTimer;
   boost::scoped_ptr<AudioWatcher> AudioListener;
   boost::scoped_ptr<VideoWatcher> VideoListener;
   boost::scoped_ptr<ImageSender> ImageSocket;
-  QFileSystemWatcher FileWatcher;
   bool InIdle;
 };
 

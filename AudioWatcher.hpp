@@ -48,14 +48,18 @@ public:
   virtual ~AudioWatcher();
 
 public Q_SLOTS:
+  void StartPlayback();
   void AudioUpdate();
   RecognitionResult DoRecognition();
   void StateMachine(RecognitionResult result, int timestamp);
 
 Q_SIGNALS:
   void AudioEvent(IOP::AudioEventType event);
+  void Timestamp(int msec);
 
 protected:
+  QString AudioFile;
+  QTime PlaybackClock;
   boost::scoped_ptr<QAudioInput> AudioInput;
   QIODevice* Device;
   QAudioRecorder AudioRecorder;
@@ -65,7 +69,6 @@ protected:
   MASoundEventAnalyzer AudioAnalyzer;
   MC::DoubleList Buffer;
   int BufferPos;
-  QTime Timer;
   MC::DoubleList WavBuffer;
 };
 

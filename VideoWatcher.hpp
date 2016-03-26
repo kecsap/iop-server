@@ -50,6 +50,7 @@ public:
 
 public Q_SLOTS:
   void CaptureFinished();
+  void AudioTimestamp(int timestamp);
 
 private:
   void CaptureImage();
@@ -57,10 +58,15 @@ private:
 
 Q_SIGNALS:
   void VideoEvent(IOP::VideoEventType event);
+  void StartAudio();
 
 protected:
   const int FrameWidth;
   const int FrameHeight;
+  const float FrameDuration;
+  int FrameCount;
+  int OverallFrameCount;
+  int WaitDuration;
   QFutureWatcher<void> CaptureWatcher;
   boost::scoped_ptr<MECapture> CaptureDevice;
   boost::scoped_ptr<MEImage> CapturedImage;
@@ -69,7 +75,6 @@ protected:
   boost::scoped_ptr<MEMotionDetection> MotionDetection;
   boost::scoped_ptr<TableMarkers> Markers;
   QTime FpsTimer;
-  int FrameCount;
   float RotationAngle;
   MEPoint RotationCenter;
   bool Undistort;

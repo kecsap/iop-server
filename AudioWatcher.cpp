@@ -64,7 +64,8 @@ MAModel* GetClassifier(const QString& resource_str)
 }
 }
 
-AudioWatcher::AudioWatcher(const QString& audio_file) : Device(NULL), AudioAnalyzer(SampleRate, 5), BufferPos(0)
+AudioWatcher::AudioWatcher(const QString& audio_file) : AudioFile(audio_file), Device(NULL),
+  AudioAnalyzer(SampleRate, 5), BufferPos(0)
 {
   // Load the classifiers
   ClassifierTree.reset(GetClassifier(":/pingpongsound_dt.mdl"));
@@ -73,13 +74,9 @@ AudioWatcher::AudioWatcher(const QString& audio_file) : Device(NULL), AudioAnaly
   // Load wave data buffer
   if (!audio_file.isEmpty())
   {
-    MCBinaryData FileData;
     MC::DoubleList Temp;
 
     MASoundData::LoadFromFile(audio_file.toStdString(), WavBuffer, Temp, 0, 0);
-
-    QSound::play(audio_file);
-    AudioUpdate();
     return;
   }
   // Set up the audio recording
@@ -106,41 +103,62 @@ AudioWatcher::~AudioWatcher()
 }
 
 
+void AudioWatcher::StartPlayback()
+{
+  if (!PlaybackClock.isValid())
+    PlaybackClock.start();
+
+  QSound::play(AudioFile);
+  AudioUpdate();
+}
+
 void AudioWatcher::AudioUpdate()
 {
+  if (!AudioFile.isEmpty())
+    Q_EMIT(Timestamp(PlaybackClock.elapsed()));
   if (WavBuffer.size() > 0)
   {
-    Buffer = MC::DoubleList(WavBuffer.begin()+BufferPos, WavBuffer.begin()+BufferPos+SlidingWindowSize);
-    BufferPos += SlidingWindowSize / 2;
+    int StartPosCorrection = (BufferPos > 0 ? SlidingWindowSize / 2 : 0);
+
+    Buffer = MC::DoubleList(WavBuffer.begin()+BufferPos-StartPosCorrection, WavBuffer.begin()+BufferPos+SlidingWindowSize);
+    BufferPos += SlidingWindowSize;
     StateMachine(DoRecognition(), (int)((float)BufferPos / 16000*1000));
     if ((int)WavBuffer.size()-BufferPos < SlidingWindowSize)
     {
       exit(0);
     }
-    QTimer::singleShot(64, this, SLOT(AudioUpdate()));
+    // Keep the buffer processing in sync with the sound playback
+    int WaitTime = PlaybackClock.elapsed() < (int)((float)BufferPos / 16000*1000) ? 100 : 90;
+
+//    printf("%d ? %d (diff: %d - wait: %d)\n", PlaybackClock.elapsed(), (int)((float)BufferPos / 16000*1000), 
+//           PlaybackClock.elapsed()-(int)((float)BufferPos / 16000*1000), WaitTime);
+    QTimer::singleShot(WaitTime, this, SLOT(AudioUpdate()));
     return;
   }
-/*  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize*2)
+  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize)
     return;
 
-  if (!Timer.isValid())
-    Timer.start();
+  if (!PlaybackClock.isValid())
+    PlaybackClock.start();
+
+  MCBinaryData RawData(AudioInput->bytesReady());
+  int Pos = 0;
+
   while (AudioInput->bytesReady() != 0)
   {
 //    printf("%d\n", AudioInput->bytesReady());
-    int ReadBytes = Device->read((char*)&Buffer[BufferPos], AudioInput->bytesReady());
+    int ReadBytes = Device->read((char*)&RawData.GetData()[Pos], AudioInput->bytesReady());
 
-    BufferPos += ReadBytes;
+    Pos += ReadBytes;
   }
-  if (BufferPos >= SlidingWindowSize*2)
+  MCMergeContainers(Buffer, MASoundData::ConvertToDouble(RawData));
+  if ((int)Buffer.size() >= SlidingWindowSize)
   {
-    StateMachine(DoRecognition(), Timer.elapsed());
-
-    memcpy(&Buffer[0], &Buffer[SlidingWindowSize], BufferPos-SlidingWindowSize);
-    BufferPos -= SlidingWindowSize;
+    StateMachine(DoRecognition(), PlaybackClock.elapsed());
+    Buffer.erase(Buffer.begin(), Buffer.begin()+SlidingWindowSize);
+    BufferPos += SlidingWindowSize;
   }
   QTimer::singleShot(30, this, SLOT(AudioUpdate()));
-  */
 }
 
 
@@ -174,11 +192,20 @@ RecognitionResult AudioWatcher::DoRecognition()
   if (WavBuffer.size() > 0)
     Prefix = MCToStr<int>(BufferPos / 16)+" ms: ";
   if (Winner == 2.0)
+  {
     printf("%sPing (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    Q_EMIT(AudioEvent(IOP::PingEvent));
+  }
   if (Winner == 3.0)
+  {
     printf("%sPong (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    Q_EMIT(AudioEvent(IOP::PongEvent));
+  }
   if (Winner == 4.0)
+  {
     printf("%sTalk (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    Q_EMIT(AudioEvent(IOP::TalkEvent));
+  }
 
   return Result;
 }
