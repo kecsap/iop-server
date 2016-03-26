@@ -170,8 +170,9 @@ RecognitionResult AudioWatcher::DoRecognition()
   // Convert the data to double
   double Power = MCCalculateVectorStatistic(Buffer, *new MCPower<double>)*100000000;;
 
-//  if (Power / 100 < 10)
-//    return RecognitionResult(1.0, 1.0);
+  if (Power / 100 < 10)
+    return RecognitionResult(1.0, 1.0);
+
 //  printf("Power: %1.2f\n", Power / 100);
 
   AudioAnalyzer.AddSoundData(Buffer);
