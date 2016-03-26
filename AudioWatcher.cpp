@@ -141,16 +141,19 @@ void AudioWatcher::AudioUpdate()
   if (!PlaybackClock.isValid())
     PlaybackClock.start();
 
-  MCBinaryData RawData(AudioInput->bytesReady());
+  MCBinaryData RawDataBuffer(AudioInput->bytesReady()*10);
+  MCBinaryData RawData;
   int Pos = 0;
 
   while (AudioInput->bytesReady() != 0)
   {
 //    printf("%d\n", AudioInput->bytesReady());
-    int ReadBytes = Device->read((char*)&RawData.GetData()[Pos], AudioInput->bytesReady());
+    int ReadBytes = Device->read((char*)&RawDataBuffer.GetData()[Pos], AudioInput->bytesReady());
 
     Pos += ReadBytes;
   }
+  RawData.Allocate(Pos);
+  memcpy(RawData.GetData(), RawDataBuffer.GetData(), Pos);
   MCMergeContainers(Buffer, MASoundData::ConvertToDouble(RawData));
   if ((int)Buffer.size() >= SlidingWindowSize)
   {
