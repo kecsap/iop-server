@@ -1,6 +1,15 @@
 
 TEMPLATE = app
 
+# Add detailed debug information
+#QMAKE_CXXFLAGS += -ggdb3
+
+# Clang's AddressSanitizer for lightweight debugging
+#QMAKE_CXX = clang++
+#QMAKE_CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer
+#QMAKE_LINK = clang++
+#QMAKE_LFLAGS += -fsanitize=address
+
 QT += qml quick widgets multimedia concurrent
 
 INCLUDEPATH += \

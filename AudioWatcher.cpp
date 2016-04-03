@@ -28,6 +28,7 @@
 #include <MCDefs.hpp>
 #include <MCSampleStatistics.hpp>
 
+#include <qcoreapplication.h>
 #include <qdatastream.h>
 #include <qfile.h>
 #include <qresource.h>
@@ -125,7 +126,7 @@ void AudioWatcher::AudioUpdate()
     StateMachine(DoRecognition(), (int)((float)BufferPos / 16000*1000));
     if ((int)WavBuffer.size()-BufferPos < SlidingWindowSize)
     {
-      exit(0);
+      QCoreApplication::quit();
     }
     // Keep the buffer processing in sync with the sound playback
     int WaitTime = PlaybackClock.elapsed() < (int)((float)BufferPos / 16000*1000) ? 100 : 90;
@@ -141,7 +142,13 @@ void AudioWatcher::AudioUpdate()
   if (!PlaybackClock.isValid())
     PlaybackClock.start();
 
-  MCBinaryData RawDataBuffer(AudioInput->bytesReady()*10);
+  if (AudioInput->bytesReady() <= 0)
+  {
+    QTimer::singleShot(30, this, SLOT(AudioUpdate()));
+    return;
+  }
+
+  MCBinaryData RawDataBuffer(50000);
   MCBinaryData RawData;
   int Pos = 0;
 

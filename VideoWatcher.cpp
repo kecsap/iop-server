@@ -31,6 +31,7 @@
 #include <MCBinaryData.hpp>
 #include <MCLog.hpp>
 
+#include <qcoreapplication.h>
 #include <qfile.h>
 #include <QtConcurrentRun>
 #include <qtimer.h>
@@ -146,7 +147,7 @@ void VideoWatcher::CaptureFinished()
   if (!CaptureDevice->IsCapturing())
   {
     MC_LOG("Capture stopped");
-    exit(0);
+    QCoreApplication::quit();
   }
   // Be sure that the image has the expected size
   if (FinalImage->GetWidth() != FrameWidth && FinalImage->GetHeight() != FrameHeight)
