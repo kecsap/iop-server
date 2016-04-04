@@ -92,9 +92,7 @@ AudioWatcher::AudioWatcher(const QString& audio_file) : AudioFile(audio_file), D
   AudioInput.reset(new QAudioInput(QAudioDeviceInfo::defaultInputDevice(), Format));
   fprintf(stderr, "Input device: %s\n", qPrintable(QAudioDeviceInfo::defaultInputDevice().deviceName()));
   AudioInput->setBufferSize(256);
-//  AudioInput->setNotifyInterval(30);
   Device = AudioInput->start();
-  connect(AudioInput.get(), SIGNAL(notify()), this, SLOT(AudioUpdate()));
   QTimer::singleShot(200, this, SLOT(AudioUpdate()));
 }
 
@@ -136,28 +134,26 @@ void AudioWatcher::AudioUpdate()
     QTimer::singleShot(WaitTime, this, SLOT(AudioUpdate()));
     return;
   }
-  if (AudioInput->bytesReady() == 0 && BufferPos < SlidingWindowSize)
-    return;
 
   if (!PlaybackClock.isValid())
     PlaybackClock.start();
 
-  if (AudioInput->bytesReady() <= 0)
-  {
-    QTimer::singleShot(30, this, SLOT(AudioUpdate()));
-    return;
-  }
-
   MCBinaryData RawDataBuffer(50000);
   MCBinaryData RawData;
   int Pos = 0;
+  int ReadBytes = 0;
 
-  while (AudioInput->bytesReady() != 0)
+  while (ReadBytes == 0)
   {
-//    printf("%d\n", AudioInput->bytesReady());
-    int ReadBytes = Device->read((char*)&RawDataBuffer.GetData()[Pos], AudioInput->bytesReady());
-
+    ReadBytes = Device->read((char*)&RawDataBuffer.GetData()[Pos], 2048);
+//    if (ReadBytes > 0)
+//      printf("%d\n", ReadBytes);
     Pos += ReadBytes;
+  }
+  if (Pos == 0)
+  {
+    QTimer::singleShot(30, this, SLOT(AudioUpdate()));
+    return;
   }
   RawData.Allocate(Pos);
   memcpy(RawData.GetData(), RawDataBuffer.GetData(), Pos);
