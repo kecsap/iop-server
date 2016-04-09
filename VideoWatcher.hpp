@@ -43,7 +43,7 @@ class VideoWatcher : public QObject
   Q_OBJECT
 
 public:
-  VideoWatcher(const QString& video_file);
+  VideoWatcher(const QString& video_file, bool normal_playback);
   virtual ~VideoWatcher();
 
   const MEImage& GetCapturedImage();
@@ -70,6 +70,7 @@ protected:
   QFutureWatcher<void> CaptureWatcher;
   boost::scoped_ptr<MECapture> CaptureDevice;
   boost::scoped_ptr<MEImage> CapturedImage;
+  boost::scoped_ptr<MEImage> OriginalImage;
   boost::scoped_ptr<MEImage> FinalImage;
   boost::scoped_ptr<MECalibration> Calibration;
   boost::scoped_ptr<MEMotionDetection> MotionDetection;

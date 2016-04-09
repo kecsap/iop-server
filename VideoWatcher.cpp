@@ -40,9 +40,9 @@
 
 #include <boost/bind.hpp>
 
-VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHeight(180),
+VideoWatcher::VideoWatcher(const QString& video_file, bool normal_playback) : FrameWidth(320), FrameHeight(180),
   FrameDuration(34), FrameCount(0), OverallFrameCount(0), WaitDuration(0), CaptureDevice(new MECapture),
-  CapturedImage(new MEImage), FinalImage(new MEImage), RotationAngle(MCFloatInfinity()),
+  CapturedImage(new MEImage), OriginalImage(new MEImage), FinalImage(new MEImage), RotationAngle(MCFloatInfinity()),
   Undistort(true), DebugCorners(false), DebugMotions(false)
 {
   // Set the calibration data manually because the portable archive does not work by some reason
@@ -75,8 +75,11 @@ VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHe
   if (!video_file.isEmpty())
   {
     CaptureDevice->Start(video_file.toStdString());
-    // The playback must go with full frame-rate and it will be adjusted automatically
-    CaptureDevice->SetPlaybackFPS(1000);
+    if (!normal_playback)
+    {
+      // The playback must go with full frame-rate and it will be adjusted automatically
+      CaptureDevice->SetPlaybackFPS(1000);
+    }
   } else {
     CaptureDevice->SetImageWidth(FrameWidth);
     CaptureDevice->SetImageHeight(FrameHeight);
@@ -89,7 +92,7 @@ VideoWatcher::VideoWatcher(const QString& video_file) : FrameWidth(320), FrameHe
   connect(&CaptureWatcher, SIGNAL(finished()), this, SLOT(CaptureFinished()));
   CaptureWatcher.setFuture(CaptureTask);
   // Set table marker finder
-  Markers.reset(new TableMarkers);
+  Markers.reset(new TableMarkers(FrameWidth, FrameHeight));
   // Set motion detection
   MotionDetection.reset(new MEMotionDetection);
   MotionDetection->SetParameter(MEMotionDetection::mdp_HUHistogramsPerPixel, (float)4);
@@ -104,7 +107,7 @@ VideoWatcher::~VideoWatcher()
 
 const MEImage& VideoWatcher::GetCapturedImage()
 {
-  return *FinalImage;
+  return *OriginalImage;
 }
 
 
@@ -131,6 +134,7 @@ void VideoWatcher::CaptureFinished()
 
   FrameCount++;
   OverallFrameCount++;
+  *OriginalImage = *CapturedImage;
   *FinalImage = *CapturedImage;
   if (AudioStarted == false)
   {
@@ -196,20 +200,24 @@ void VideoWatcher::CaptureFinished()
 
 //  MotionFrame.Resize(FrameWidth / 4, FrameHeight / 4);
 //  MotionDetection->DetectMotions(MotionFrame);
+  /*
+   * Draw the debug signs and texts on the original image
+   */
   // Composite debug signs
   if (DebugMotions)
   {
+    // TODO: Do this properly on the top of OriginalImage
     MotionDetection->GetMotionsMask(*FinalImage);
     // Convert the grayscale image back to RGB
     FinalImage->Resize(FrameWidth, FrameHeight);
     FinalImage->ConvertToRGB();
   }
   if (DebugCorners)
-    Markers->DrawDebugSigns(*FinalImage);
+    Markers->DrawDebugSigns(*OriginalImage);
   if (Markers->IsReady() && Markers->IsAnyMissingCorner())
   {
     Markers->DrawMissingCorners(*FinalImage);
-    FinalImage->DrawText(60, 100, "Table not detected", 0.6, MEColor(255, 255, 255));
+    OriginalImage->DrawText(160, 320, "Table not detected", 1, MEColor(255, 255, 255));
     Q_EMIT(VideoEvent(IOP::MissingCornersEvent));
   }
   Q_EMIT(VideoEvent(IOP::NormalEvent));

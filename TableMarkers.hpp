@@ -30,7 +30,7 @@ class MEPoint;
 class TableMarkers
 {
 public:
-  TableMarkers();
+  TableMarkers(int image_width, int image_height);
   virtual ~TableMarkers();
 
   void Reset();
@@ -45,6 +45,8 @@ private:
   MEPoint FindCorner(MEImage& image, int x1, int y1, int x2, int y2);
 
 protected:
+  const int ImageWidth;
+  const int ImageHeight;
   const int FrameLimit;
   const int CornerSampleCount;
   const int CornerRegionWidth;

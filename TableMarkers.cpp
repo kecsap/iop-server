@@ -28,8 +28,9 @@
 
 #include <opencv/cv.h>
 
-TableMarkers::TableMarkers() : FrameLimit(60), CornerSampleCount(40),
-  CornerRegionWidth(80), CornerRegionHeight(60), RegionGap(5), FrameCount(0),
+TableMarkers::TableMarkers(int image_width, int image_height) : ImageWidth(image_width),
+  ImageHeight(image_height), FrameLimit(60), CornerSampleCount(40),
+  CornerRegionWidth(ImageWidth / 4), CornerRegionHeight(ImageHeight / 3), RegionGap(5), FrameCount(0),
   Corner1X(CornerSampleCount, *new MCArithmeticMean<int>("Mean")),
   Corner1Y(CornerSampleCount, *new MCArithmeticMean<int>("Mean")),
   Corner2X(CornerSampleCount, *new MCArithmeticMean<int>("Mean")),
@@ -169,13 +170,16 @@ void TableMarkers::DrawMissingCorners(MEImage& image)
 
 void TableMarkers::DrawDebugSigns(MEImage& image)
 {
-  image.DrawRectangle(RegionGap, RegionGap, CornerRegionWidth, CornerRegionHeight, MEColor(0, 255, 0), false);
-  image.DrawRectangle(image.GetWidth()-1-CornerRegionWidth, RegionGap, image.GetWidth()-1-RegionGap, CornerRegionHeight,
-                      MEColor(0, 255, 0), false);
-  image.DrawRectangle(RegionGap, image.GetHeight()-1-CornerRegionHeight, CornerRegionWidth, image.GetHeight()-1-RegionGap,
-                      MEColor(0, 255, 0), false);
-  image.DrawRectangle(image.GetWidth()-1-CornerRegionWidth, image.GetHeight()-1-CornerRegionHeight,
-                      image.GetWidth()-1-RegionGap, image.GetHeight()-1-RegionGap, MEColor(0, 255, 0), false);
+  MEImage TempImage(ImageWidth, ImageHeight, 3);
+
+  TempImage.DrawRectangle(RegionGap, RegionGap, CornerRegionWidth, CornerRegionHeight,
+                          MEColor(0, 255, 0), false);
+  TempImage.DrawRectangle(TempImage.GetWidth()-1-CornerRegionWidth, RegionGap,
+                          TempImage.GetWidth()-1-RegionGap, CornerRegionHeight, MEColor(0, 255, 0), false);
+  TempImage.DrawRectangle(RegionGap, TempImage.GetHeight()-1-CornerRegionHeight,
+                          CornerRegionWidth, TempImage.GetHeight()-1-RegionGap, MEColor(0, 255, 0), false);
+  TempImage.DrawRectangle(TempImage.GetWidth()-1-CornerRegionWidth, TempImage.GetHeight()-1-CornerRegionHeight,
+                          TempImage.GetWidth()-1-RegionGap, TempImage.GetHeight()-1-RegionGap, MEColor(0, 255, 0), false);
 
   const int PosX1 = (int)Corner1X.GetStatistic("Mean")->GetResult();
   const int PosY1 = (int)Corner1Y.GetStatistic("Mean")->GetResult();
@@ -188,28 +192,30 @@ void TableMarkers::DrawDebugSigns(MEImage& image)
 
   // Draw the detected corners
   if (Corner1X.IsValid() && Corner1Y.IsValid())
-    image.DrawCircle(PosX1, PosY1, 5, MEColor(0, 0, 255));
+    TempImage.DrawCircle(PosX1, PosY1, 5, MEColor(0, 0, 255));
   if (Corner2X.IsValid() && Corner2Y.IsValid())
-    image.DrawCircle(PosX2, PosY2, 5, MEColor(0, 0, 255));
+    TempImage.DrawCircle(PosX2, PosY2, 5, MEColor(0, 0, 255));
   if (Corner3X.IsValid() && Corner3Y.IsValid())
-    image.DrawCircle(PosX3, PosY3, 5, MEColor(0, 0, 255));
+    TempImage.DrawCircle(PosX3, PosY3, 5, MEColor(0, 0, 255));
   if (Corner4X.IsValid() && Corner4Y.IsValid())
-    image.DrawCircle(PosX4, PosY4, 5, MEColor(0, 0, 255));
+    TempImage.DrawCircle(PosX4, PosY4, 5, MEColor(0, 0, 255));
 
   // Draw intermediate points and lines
   if (Corner1X.IsValid() && Corner1Y.IsValid() && Corner2X.IsValid() && Corner2Y.IsValid() &&
       Corner3X.IsValid() && Corner3Y.IsValid() && Corner4X.IsValid() && Corner4Y.IsValid())
   {
-    image.DrawCircle((PosX1+PosX2) / 2, (PosY1+PosY2) / 2, 5, MEColor(255, 255, 0));
-    image.DrawCircle((PosX3+PosX4) / 2, (PosY3+PosY4) / 2, 5, MEColor(255, 255, 0));
-    image.DrawCircle((PosX1+PosX3) / 2, (PosY1+PosY3) / 2, 5, MEColor(255, 255, 0));
-    image.DrawCircle((PosX2+PosX4) / 2, (PosY2+PosY4) / 2, 5, MEColor(255, 255, 0));
+    TempImage.DrawCircle((PosX1+PosX2) / 2, (PosY1+PosY2) / 2, 5, MEColor(255, 255, 0));
+    TempImage.DrawCircle((PosX3+PosX4) / 2, (PosY3+PosY4) / 2, 5, MEColor(255, 255, 0));
+    TempImage.DrawCircle((PosX1+PosX3) / 2, (PosY1+PosY3) / 2, 5, MEColor(255, 255, 0));
+    TempImage.DrawCircle((PosX2+PosX4) / 2, (PosY2+PosY4) / 2, 5, MEColor(255, 255, 0));
 
-    image.DrawLine((PosX1+PosX2) / 2, (PosY1+PosY2) / 2,
-                   (PosX3+PosX4) / 2, (PosY3+PosY4) / 2, MEColor(255, 255, 0));
-    image.DrawLine((PosX1+PosX3) / 2, (PosY1+PosY3) / 2,
-                   (PosX2+PosX4) / 2, (PosY2+PosY4) / 2, MEColor(255, 255, 0));
+    TempImage.DrawLine((PosX1+PosX2) / 2, (PosY1+PosY2) / 2,
+                       (PosX3+PosX4) / 2, (PosY3+PosY4) / 2, MEColor(255, 255, 0));
+    TempImage.DrawLine((PosX1+PosX3) / 2, (PosY1+PosY3) / 2,
+                       (PosX2+PosX4) / 2, (PosY2+PosY4) / 2, MEColor(255, 255, 0));
   }
+  TempImage.Resize(image.GetWidth(), image.GetHeight());
+  image.Addition(TempImage, ME::MaskAddition);
 }
 
 
@@ -226,7 +232,7 @@ MEPoint TableMarkers::FindCorner(MEImage& image, int x1, int y1, int x2, int y2)
   // Copy the search region
   ME::ImageSPtr RegionImage(new MEImage);
   float Brightness = 0;
-  const float BrightnessLimit = 80;
+  const float BrightnessLimit = 110;
 
   image.CopyImagePart(X1, Y1, X2, Y2, *RegionImage);
   RegionImage->ConvertToGrayscale();

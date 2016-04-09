@@ -67,7 +67,8 @@ QImage ImageProvider::requestImage(const QString& id, QSize* size, const QSize& 
 
 
 GameWatcher::GameWatcher(const QString& audio_file, const QString& video_file, const QString& wallpi_ip,
-                         QObject* root_object) : Page(NULL), InIdle(true)
+                         QObject* root_object) :
+  Page(NULL), InIdle(true)
 {
   qRegisterMetaType<IOP::VideoEventType>("IOP::VideoEventType");
   qRegisterMetaType<IOP::AudioEventType>("IOP::AudioEventType");
@@ -76,7 +77,7 @@ GameWatcher::GameWatcher(const QString& audio_file, const QString& video_file, c
           this, SLOT(AudioEvent(IOP::AudioEventType)));
   if (!wallpi_ip.isEmpty())
     ImageSocket.reset(new ImageSender(wallpi_ip));
-  VideoListener.reset(new VideoWatcher(video_file));
+  VideoListener.reset(new VideoWatcher(video_file, audio_file.isEmpty()));
   connect(VideoListener.get(), SIGNAL(VideoEvent(IOP::VideoEventType)),
           this, SLOT(VideoEvent(IOP::VideoEventType)));
   connect(VideoListener.get(), SIGNAL(StartAudio()), AudioListener.get(), SLOT(StartPlayback()));
@@ -111,11 +112,11 @@ void GameWatcher::VideoEvent(IOP::VideoEventType event)
     StaticImage.reset(new MEImage(VideoListener->GetCapturedImage()));
     if (InIdle)
     {
-      StaticImage->DrawText(175, 160, "Lights off", 0.6, MEColor(255, 255, 255));
-    }
+      StaticImage->DrawText(350, 320, "Lights off", 1.1, MEColor(255, 255, 255));
+    } else
     if (StatusTextTimer.isValid() && StatusTextTimer.elapsed() < 500)
     {
-      StaticImage->DrawText(140, 160, StatusText.toStdString(), 0.6, MEColor(255, 255, 255));
+      StaticImage->DrawText(350, 320, StatusText.toStdString(), 1.1, MEColor(255, 255, 255));
     }
     if (Page)
     {
