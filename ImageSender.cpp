@@ -21,6 +21,7 @@
 
 #include "ImageSender.hpp"
 
+#include <MECalibration.hpp>
 #include <MEImage.hpp>
 
 #include <MCBinaryData.hpp>
@@ -37,6 +38,27 @@
 ImageSender::ImageSender(const QString& host_name) : QTcpSocket(), QQuickImageProvider(QQuickImageProvider::Image),
   Image(new MEImage)
 {
+  // Undistortion parameters for resolution 640x360
+  MC::FloatTable Intrinsics;
+  MC::FloatList DistortionCoefficients;
+
+  Intrinsics.resize(3);
+  Intrinsics[0].push_back(930);
+  Intrinsics[0].push_back(0);
+  Intrinsics[0].push_back(320);
+  Intrinsics[1].push_back(0);
+  Intrinsics[1].push_back(900);
+  Intrinsics[1].push_back(180);
+  Intrinsics[2].push_back(0);
+  Intrinsics[2].push_back(0);
+  Intrinsics[2].push_back(1);
+  DistortionCoefficients.push_back(0.06);
+  DistortionCoefficients.push_back(-4.3);
+  DistortionCoefficients.push_back(0.03);
+  DistortionCoefficients.push_back(0.04);
+  DistortionCoefficients.push_back(0.1);
+  Calibration.reset(new MECalibration(640, 360, Intrinsics, DistortionCoefficients));
+
   connectToHost(QHostAddress(host_name), 10000);
   qRegisterMetaType<QAbstractSocket::SocketError>("QAbstractSocket::SocketError");
   qRegisterMetaType<QAbstractSocket::SocketError>("QAbstractSocket::SocketState");
@@ -119,6 +141,9 @@ void ImageSender::SendImage()
 
   {
     QMutexLocker Lock(&ImageCopy);
+
+    if (Image->GetWidth() == 640 && Image->GetHeight() == 360)
+      Calibration->Undistort(*Image);
 
     ImageData.reset(Image->Compress());
   }

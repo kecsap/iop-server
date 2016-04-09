@@ -30,6 +30,7 @@
 
 #include <vector>
 
+class MECalibration;
 class MEImage;
 
 class ImageSender : public QTcpSocket, public QQuickImageProvider
@@ -50,6 +51,7 @@ public:
   void SendImage();
 
 private:
+  boost::scoped_ptr<MECalibration> Calibration;
   std::vector<char> ImageData;
   boost::scoped_ptr<MEImage> Image;
   QMutex SendMutex, ImageCopy;
