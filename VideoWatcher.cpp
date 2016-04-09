@@ -81,8 +81,9 @@ VideoWatcher::VideoWatcher(const QString& video_file, bool normal_playback) : Fr
       CaptureDevice->SetPlaybackFPS(1000);
     }
   } else {
-    CaptureDevice->SetImageWidth(FrameWidth);
-    CaptureDevice->SetImageHeight(FrameHeight);
+    // Capture resolution is 640x360
+    CaptureDevice->SetImageWidth(FrameWidth*2);
+    CaptureDevice->SetImageHeight(FrameHeight*2);
     CaptureDevice->Start(0);
   }
   FpsTimer.start();
