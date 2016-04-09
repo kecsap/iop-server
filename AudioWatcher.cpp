@@ -42,17 +42,19 @@ namespace
 const int SampleRate = 16000;
 const int SlidingWindowSize = 2048;
 
-QString GetAudioDevice()
+QAudioDeviceInfo GetAudioDevice()
 {
-  QAudioRecorder RecorderInfo;
-  QStringList InputDevices = RecorderInfo.audioInputs();
+  QList<QAudioDeviceInfo> Devices = QAudioDeviceInfo::availableDevices(QAudio::AudioInput);
+  QAudioDeviceInfo FinalDevice;
 
   fprintf(stderr, "Input devices:\n");
-  for (int i = 0; i < InputDevices.size(); ++i)
+  for (int i = 0; i < Devices.size(); ++i)
   {
-    fprintf(stderr, "%s\n", qPrintable(InputDevices[i]));
+    fprintf(stderr, "%d: %s\n", i, qPrintable(Devices[i].deviceName()));
+    if (Devices[i].deviceName() == "alsa_input.usb-0d8c_C-Media_USB_Audio_Device-00-Device.analog-mono")
+      return Devices[i];
   }
-  return "hw:CARD=Device,DEV=0";
+  return QAudioDeviceInfo::defaultInputDevice();
 }
 
 
@@ -82,6 +84,7 @@ AudioWatcher::AudioWatcher(const QString& audio_file) : AudioFile(audio_file), D
   }
   // Set up the audio recording
   QAudioFormat Format;
+  QAudioDeviceInfo SelectedDevice = GetAudioDevice();
 
   Format.setSampleRate(SampleRate);
   Format.setChannelCount(1);
@@ -89,8 +92,8 @@ AudioWatcher::AudioWatcher(const QString& audio_file) : AudioFile(audio_file), D
   Format.setSampleType(QAudioFormat::SignedInt);
   Format.setByteOrder(QAudioFormat::LittleEndian);
   Format.setCodec("audio/pcm");
-  AudioInput.reset(new QAudioInput(QAudioDeviceInfo::defaultInputDevice(), Format));
-  fprintf(stderr, "Input device: %s\n", qPrintable(QAudioDeviceInfo::defaultInputDevice().deviceName()));
+  AudioInput.reset(new QAudioInput(SelectedDevice, Format));
+  fprintf(stderr, "Input device: %s\n", qPrintable(SelectedDevice.deviceName()));
   AudioInput->setBufferSize(256);
   Device = AudioInput->start();
   QTimer::singleShot(200, this, SLOT(AudioUpdate()));
@@ -141,13 +144,13 @@ void AudioWatcher::AudioUpdate()
   MCBinaryData RawDataBuffer(50000);
   MCBinaryData RawData;
   int Pos = 0;
-  int ReadBytes = 0;
+  int ReadBytes = 10;
 
-  while (ReadBytes == 0)
+  while (ReadBytes > 0)
   {
     ReadBytes = Device->read((char*)&RawDataBuffer.GetData()[Pos], 2048);
-//    if (ReadBytes > 0)
-//      printf("%d\n", ReadBytes);
+//  if (ReadBytes > 0)
+//    printf("Pos: %d - Bytes: %d\n", Pos, ReadBytes);
     Pos += ReadBytes;
   }
   if (Pos == 0)
@@ -171,12 +174,11 @@ void AudioWatcher::AudioUpdate()
 RecognitionResult AudioWatcher::DoRecognition()
 {
   // Convert the data to double
-  double Power = MCCalculateVectorStatistic(Buffer, *new MCPower<double>)*100000000;;
+  double Median = MCCalculateVectorStatistic(Buffer, *new MCMedian<double>);
 
-  if (Power / 100 < 10)
+  printf("Median: %1.12f\n", Median);
+  if (Median / 100 < 10)
     return RecognitionResult(1.0, 1.0);
-
-//  printf("Power: %1.2f\n", Power / 100);
 
   AudioAnalyzer.AddSoundData(Buffer);
   MC::FloatTable FeatureVectors = AudioAnalyzer.GetFeatureVectors();
