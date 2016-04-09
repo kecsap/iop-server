@@ -172,6 +172,7 @@ void TableMarkers::DrawDebugSigns(MEImage& image)
 {
   MEImage TempImage(ImageWidth, ImageHeight, 3);
 
+  TempImage.Clear();
   TempImage.DrawRectangle(RegionGap, RegionGap, CornerRegionWidth, CornerRegionHeight,
                           MEColor(0, 255, 0), false);
   TempImage.DrawRectangle(TempImage.GetWidth()-1-CornerRegionWidth, RegionGap,
