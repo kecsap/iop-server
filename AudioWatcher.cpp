@@ -177,7 +177,7 @@ RecognitionResult AudioWatcher::DoRecognition()
   double Median = MCCalculateVectorStatistic(Buffer, *new MCMedian<double>);
 
   printf("Median: %1.12f\n", Median);
-  if (Median / 100 < 10)
+  if (Median < 10)
     return RecognitionResult(1.0, 1.0);
 
   AudioAnalyzer.AddSoundData(Buffer);
@@ -202,17 +202,17 @@ RecognitionResult AudioWatcher::DoRecognition()
     Prefix = MCToStr<int>(BufferPos / 16)+" ms: ";
   if (Winner == 2.0)
   {
-    printf("%sPing (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    printf("%sPing (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Median);
     Q_EMIT(AudioEvent(IOP::PingEvent));
   }
   if (Winner == 3.0)
   {
-    printf("%sPong (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    printf("%sPong (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Median);
     Q_EMIT(AudioEvent(IOP::PongEvent));
   }
   if (Winner == 4.0)
   {
-    printf("%sTalk (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Power / 100);
+    printf("%sTalk (%d out of %d) - Power %1.2f\n", Prefix.c_str(), Count, (int)Labels.size(), Median);
     Q_EMIT(AudioEvent(IOP::TalkEvent));
   }
 
