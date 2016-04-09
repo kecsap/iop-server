@@ -142,8 +142,9 @@ void ImageSender::SendImage()
   {
     QMutexLocker Lock(&ImageCopy);
 
-    if (Image->GetWidth() == 640 && Image->GetHeight() == 360)
-      Calibration->Undistort(*Image);
+// DISABLED: Too much performance hit
+//    if (Image->GetWidth() == 640 && Image->GetHeight() == 360)
+//      Calibration->Undistort(*Image);
 
     ImageData.reset(Image->Compress());
   }
