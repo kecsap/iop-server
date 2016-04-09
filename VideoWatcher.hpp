@@ -71,6 +71,7 @@ protected:
   boost::scoped_ptr<MECapture> CaptureDevice;
   boost::scoped_ptr<MEImage> CapturedImage;
   boost::scoped_ptr<MEImage> OriginalImage;
+  boost::scoped_ptr<MEImage> DebugMessageImage;
   boost::scoped_ptr<MEImage> FinalImage;
   boost::scoped_ptr<MECalibration> Calibration;
   boost::scoped_ptr<MEMotionDetection> MotionDetection;
