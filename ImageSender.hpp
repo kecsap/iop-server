@@ -22,12 +22,15 @@
 #ifndef ImageSender_hpp
 #define ImageSender_hpp
 
+#include <QMutexLocker>
 #include <qquickimageprovider.h>
 #include <qtcpsocket.h>
 
+#include <boost/scoped_ptr.hpp>
+
 #include <vector>
 
-class MCBinaryData;
+class MEImage;
 
 class ImageSender : public QTcpSocket, public QQuickImageProvider
 {
@@ -43,10 +46,13 @@ private Q_SLOTS:
 
 public:
   virtual QImage requestImage(const QString& id, QSize* size, const QSize& requested_size);
-  void Send(MCBinaryData& data);
+  void SetImage(MEImage& data);
+  void SendImage();
 
 private:
   std::vector<char> ImageData;
+  boost::scoped_ptr<MEImage> Image;
+  QMutex SendMutex, ImageCopy;
 };
 
 #endif

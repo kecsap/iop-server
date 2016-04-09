@@ -21,6 +21,8 @@
 
 #include "ImageSender.hpp"
 
+#include <MEImage.hpp>
+
 #include <MCBinaryData.hpp>
 
 #include <qglobal.h>
@@ -32,7 +34,8 @@
 
 #include <boost/make_shared.hpp>
 
-ImageSender::ImageSender(const QString& host_name) : QTcpSocket(), QQuickImageProvider(QQuickImageProvider::Image)
+ImageSender::ImageSender(const QString& host_name) : QTcpSocket(), QQuickImageProvider(QQuickImageProvider::Image),
+  Image(new MEImage)
 {
   connectToHost(QHostAddress(host_name), 10000);
   qRegisterMetaType<QAbstractSocket::SocketError>("QAbstractSocket::SocketError");
@@ -102,9 +105,28 @@ QImage ImageSender::requestImage(const QString& id, QSize* size, const QSize& re
 }
 
 
-void ImageSender::Send(MCBinaryData& data)
+void ImageSender::SetImage(MEImage& image)
 {
+  QMutexLocker Lock(&ImageCopy);
+
+  *Image = image;
+}
+
+
+void ImageSender::SendImage()
+{
+  MC::BinaryDataSPtr ImageData;
+
+  {
+    QMutexLocker Lock(&ImageCopy);
+
+    ImageData.reset(Image->Compress());
+  }
   // Use a chunk limit (laziness)
-  if (data.GetSize() <= 65483)
-    writeData((char*)data.GetData(), data.GetSize());
+  if (ImageData->GetSize() <= 65483)
+  {
+    QMutexLocker Lock(&SendMutex);
+
+    writeData((char*)ImageData->GetData(), ImageData->GetSize());
+  }
 }

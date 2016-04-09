@@ -29,6 +29,9 @@
 #include <MEImage.hpp>
 
 #include <qmetatype.h>
+#include <QtConcurrentRun>
+
+#include <boost/bind.hpp>
 
 static ME::ImageSPtr StaticImage;
 
@@ -120,9 +123,9 @@ void GameWatcher::VideoEvent(IOP::VideoEventType event)
     }
     if (ImageSocket.get())
     {
-      MC::BinaryDataSPtr ImageData(StaticImage->Compress());
-
-      ImageSocket->Send(*ImageData);
+      ImageSocket->SetImage(*StaticImage);
+      // Run the JPEG compression and sending in an other thread
+      QtConcurrent::run(boost::bind(&ImageSender::SendImage, ImageSocket.get()));
     }
   } else
   if (event == IOP::NormalEvent && InIdle)
