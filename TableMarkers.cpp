@@ -72,12 +72,6 @@ void TableMarkers::AddImage(MEImage& image)
   MEPoint Point4 = FindCorner(image, image.GetWidth()-1-CornerRegionWidth, image.GetHeight()-1-CornerRegionHeight,
                               image.GetWidth()-1-RegionGap, image.GetHeight()-1-RegionGap);
 
-//  MEPoint Point1 = image.FindCorner(RegionGap, RegionGap, CornerRegionWidth, CornerRegionHeight);
-//  MEPoint Point2 = image.FindCorner(image.GetWidth()-1-CornerRegionWidth, RegionGap, image.GetWidth()-1-RegionGap, CornerRegionHeight);
-//  MEPoint Point3 = image.FindCorner(RegionGap, image.GetHeight()-1-CornerRegionHeight, CornerRegionWidth, image.GetHeight()-1-RegionGap);
-//  MEPoint Point4 = image.FindCorner(image.GetWidth()-1-CornerRegionWidth, image.GetHeight()-1-CornerRegionHeight,
-//                                    image.GetWidth()-1-RegionGap, image.GetHeight()-1-RegionGap);
-
   FrameCount++;
   if (Point1.IsValid())
   {
@@ -231,9 +225,17 @@ MEPoint TableMarkers::FindCorner(MEImage& image, int x1, int y1, int x2, int y2)
 
   // Copy the search region
   ME::ImageSPtr RegionImage(new MEImage);
+  float Brightness = 0;
+  const float BrightnessLimit = 80;
 
   image.CopyImagePart(X1, Y1, X2, Y2, *RegionImage);
   RegionImage->ConvertToGrayscale();
+  Brightness = RegionImage->AverageBrightnessLevel();
+  if (Brightness > BrightnessLimit)
+  {
+    printf("Region (%dx%d-%dx%d) is too bright (%1.2f > %1.0f)\n", x1, y1, x2, y2, Brightness, BrightnessLimit);
+    return MEPoint(-1, -1);
+  }
   RegionImage->AdaptiveThreshold();
   RegionImage->Binarize(1);
 
